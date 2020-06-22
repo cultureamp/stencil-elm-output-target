@@ -38,21 +38,26 @@ async function generateProxyElmModule(
   outputTarget: OutputTargetElm,
 ) {
   // TODO don't expose all
-  const moduleDeclaration = `module ${outputTarget.proxiesModuleName} exposing (..)\n`;
-
-  const codegenWarningComment =
-    '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENTS\n\n';
+  const moduleDeclaration = `module ${outputTarget.proxiesModuleName} exposing
+    ( ${components
+      .map((c) => dashToCamelCase(c.tagName))
+      .join('\n    , ')}\n    )\n`;
 
   const imports = `import Html exposing (Html, node)
 import Html.Attributes exposing (attribute)
 import Html.Events exposing (on)
 import Json.Decode as Decode\n\n\n`;
 
+  const codegenWarningComment =
+    '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENTS\n\n';
+
+  const generatedCode = components.map(componentElm).join('\n');
+
   const moduleSrcParts: string[] = [
     moduleDeclaration,
     imports,
     codegenWarningComment,
-    components.map(componentElm).join('\n'),
+    generatedCode,
   ];
 
   const moduleSrc = moduleSrcParts.join('\n') + '\n';
