@@ -5,6 +5,7 @@ import {
   ComponentCompilerMeta,
   Config,
   ComponentCompilerProperty,
+  ComponentCompilerEvent,
 } from '@stencil/core/internal';
 
 export async function elmProxyOutput(
@@ -43,7 +44,9 @@ async function generateProxyElmModule(
     '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENTS\n\n';
 
   const imports = `import Html exposing (Html, node)
-import Html.Attributes exposing (attribute)\n\n\n`;
+import Html.Attributes exposing (attribute)
+import Html.Events exposing (on)
+import Json.Decode as Decode\n\n\n`;
 
   const moduleSrcParts: string[] = [
     moduleDeclaration,
@@ -67,35 +70,54 @@ function componentElm(cmpMeta: ComponentCompilerMeta): string {
     .map((prop) => attribute(prop))
     .flatMap((maybeNull) => (!!maybeNull ? [maybeNull] : [])); // filter out nulls
 
+  const compatibleEvents: {
+    name: string;
+  }[] = cmpMeta.events
+    .map((eventMeta) => event(eventMeta))
+    .flatMap((maybeNull) => (!!maybeNull ? [maybeNull] : [])); // filter out nulls
+
   const takesChildren: boolean = cmpMeta.htmlTagNames.includes('slot');
 
   const elementFunctionType: string = [
     compatibleProps.length > 0 &&
       '{ ' +
-        compatibleProps
-          .map(({ name, type }) => `${name} : ${type}`)
-          .join(',\n') +
-        ' }',
+        [
+          compatibleProps.map(({ name, type }) => `${name} : ${type}`),
+          compatibleEvents.map(({ name }) => `${eventHandlerName(name)} : msg`),
+        ]
+          .flat()
+          .join('\n    , ') +
+        '\n    }',
     takesChildren && 'List (Html msg)',
     'Html msg',
   ]
     .filter((maybeFalsy) => !!maybeFalsy)
-    .join(' -> ');
+    .join('\n    -> ');
 
   const elementAttributesArg: string =
     compatibleProps.length > 0 ? 'attributes ' : '';
 
   const attributes =
-    '[ ' + compatibleProps.map((prop) => attributeElm(prop)).join(',\n') + ' ]';
+    '[ ' +
+    [
+      compatibleProps.map((prop) => attributeElm(prop)),
+      compatibleEvents.map((event) => eventElm(event)),
+    ]
+      .flat()
+      .join('\n        , ') +
+    '\n        ]';
 
   const elementChildrenArg: string = takesChildren ? 'children ' : '';
 
   const children = takesChildren ? 'children' : '[]';
 
   return [
-    `${tagNameAsCamel} : ${elementFunctionType}`,
+    `${tagNameAsCamel} :`,
+    `    ${elementFunctionType}`,
     `${tagNameAsCamel} ${elementAttributesArg}${elementChildrenArg}=`,
-    `    node "${cmpMeta.tagName}" ${attributes} ${children}\n\n`,
+    `    node "${cmpMeta.tagName}"`,
+    `        ${attributes}`,
+    `        ${children}\n\n`,
   ].join('\n');
 }
 
@@ -114,4 +136,19 @@ function attribute(
 
 function attributeElm(prop: { name: string }): string {
   return `attribute "${prop.name}" attributes.${prop.name}`;
+}
+
+function event(eventMeta: ComponentCompilerEvent): { name: string } | null {
+  // TODO support decoding CustomEvent detail values
+  return { name: eventMeta.name };
+}
+
+function eventElm(event: { name: string }): string {
+  return `on "${event.name}" (Decode.succeed attributes.${eventHandlerName(
+    event.name,
+  )})`;
+}
+
+function eventHandlerName(eventName: string) {
+  return `on${eventName.charAt(0).toUpperCase() + eventName.slice(1)}`;
 }
