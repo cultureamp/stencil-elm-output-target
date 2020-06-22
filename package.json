@@ -1,0 +1,28 @@
+{
+  "name": "stencil-elm-output-target",
+  "version": "1.0.0",
+  "description": "This is an output plugin for stencil.",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.js",
+  "files": [
+    "dist/",
+    "elm-component-lib/"
+  ],
+  "scripts": {
+    "build": "tsc && npm run rollup",
+    "rollup": "rollup -c",
+    "test": "jest --passWithNoTests"
+  },
+  "author": "Kevin Yank <kevin@cultureamp.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@stencil/core": ">=1.8.0",
+    "@types/node": "^14.0.13",
+    "rollup": "^2.16.1",
+    "rollup-plugin-sourcemaps": "^0.6.2",
+    "typescript": "^3.9.5"
+  },
+  "peerDependencies": {
+    "@stencil/core": ">=1.8.0"
+  }
+}
