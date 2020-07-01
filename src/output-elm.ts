@@ -19,7 +19,12 @@ export async function elmProxyOutput(
     components,
   );
 
-  await generateProxyElmModule(compilerCtx, filteredComponents, outputTarget);
+  await generateProxyElmModule(
+    compilerCtx,
+    config,
+    filteredComponents,
+    outputTarget,
+  );
   // await copyResources(config, outputTarget);
 }
 
@@ -33,7 +38,9 @@ function getFilteredComponents(
 }
 
 async function generateProxyElmModule(
+  this: void,
   compilerCtx: CompilerCtx,
+  config: Config,
   components: ComponentCompilerMeta[],
   outputTarget: OutputTargetElm,
 ) {
@@ -51,7 +58,9 @@ import Json.Decode as Decode\n\n\n`;
   const codegenWarningComment =
     '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENTS\n\n';
 
-  const generatedCode = components.map(componentElm).join('\n');
+  const generatedCode = components
+    .map(componentElm.bind(this, config))
+    .join('\n');
 
   const moduleSrcParts: string[] = [
     moduleDeclaration,
@@ -65,14 +74,18 @@ import Json.Decode as Decode\n\n\n`;
   return compilerCtx.fs.writeFile(outputTarget.proxiesFile, moduleSrc);
 }
 
-function componentElm(cmpMeta: ComponentCompilerMeta): string {
+function componentElm(
+  this: void,
+  config: Config,
+  cmpMeta: ComponentCompilerMeta,
+): string {
   const tagNameAsCamel = dashToCamelCase(cmpMeta.tagName);
 
   const compatibleProps: {
     name: string;
     type: string;
   }[] = cmpMeta.properties
-    .map((prop) => attribute(prop))
+    .map(attribute.bind(this, config, cmpMeta))
     .flatMap((maybeNull) => (!!maybeNull ? [maybeNull] : [])); // filter out nulls
 
   const compatibleEvents: {
@@ -127,6 +140,8 @@ function componentElm(cmpMeta: ComponentCompilerMeta): string {
 }
 
 function attribute(
+  config: Config,
+  cmpMeta: ComponentCompilerMeta,
   prop: ComponentCompilerProperty,
 ): { name: string; type: string } | null {
   const elmTypes = new Map([['string', 'String']]);
@@ -136,6 +151,9 @@ function attribute(
   }
 
   // attribute type not supported
+  config.logger?.warn(
+    `Component "${cmpMeta.tagName}" prop "${prop.name}" of type "${prop.type}" is not supported by Elm output target.`,
+  );
   return null;
 }
 
