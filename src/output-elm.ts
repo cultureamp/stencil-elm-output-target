@@ -81,15 +81,13 @@ function componentElm(
 ): string {
   const tagNameAsCamel = dashToCamelCase(cmpMeta.tagName);
 
-  const supportedProps: Attribute[] = cmpMeta.properties
-    .map(attributeForProp.bind(this, config, cmpMeta))
-    .filter((attribute) => attribute.isSupported());
+  const supportedProps: Prop[] = cmpMeta.properties
+    .map(propFromMetadata.bind(this, config, cmpMeta))
+    .filter((prop) => prop.isSupported());
 
-  const compatibleEvents: {
-    name: string;
-  }[] = cmpMeta.events
-    .map((eventMeta) => event(eventMeta))
-    .flatMap((maybeNull) => (!!maybeNull ? [maybeNull] : [])); // filter out nulls
+  const supportedEvents: Event[] = cmpMeta.events
+    .map(eventFromMetadata.bind(this, config, cmpMeta))
+    .filter((event) => event.isSupported());
 
   const takesChildren: boolean = cmpMeta.htmlTagNames.includes('slot');
 
@@ -97,10 +95,8 @@ function componentElm(
     supportedProps.length > 0 &&
       '{ ' +
         [
-          supportedProps.map((attribute) =>
-            attribute.configFieldTypeAnnotation(),
-          ),
-          compatibleEvents.map(({ name }) => `${eventHandlerName(name)} : msg`),
+          supportedProps.map((prop) => prop.configFieldTypeAnnotation()),
+          supportedEvents.map((event) => event.configFieldTypeAnnotation()),
         ]
           .flat()
           .join('\n    , ') +
@@ -114,15 +110,18 @@ function componentElm(
   const elementAttributesArg: string =
     supportedProps.length > 0 ? 'attributes ' : '';
 
-  const attributes =
-    '[ ' +
-    [
-      supportedProps.map((attribute) => attribute.htmlAttributeExpression()),
-      compatibleEvents.map((event) => eventElm(event)),
-    ]
-      .flat()
-      .join('\n        , ') +
-    '\n        ]';
+  const attributes = [
+    '([ ' +
+      [
+        supportedProps.map((prop) => prop.maybeHtmlAttribute()),
+        supportedEvents.map((event) => event.maybeHtmlAttribute()),
+      ]
+        .flat()
+        .join('\n         , '),
+    '         ]',
+    '            |> List.filterMap identity',
+    '        )',
+  ].join('\n');
 
   const elementChildrenArg: string = takesChildren ? 'children ' : '';
 
@@ -138,54 +137,57 @@ function componentElm(
   ].join('\n');
 }
 
-function attributeForProp(
+function propFromMetadata(
   config: Config,
   cmpMeta: ComponentCompilerMeta,
-  prop: ComponentCompilerProperty,
-): Attribute {
-  const attributeClassByType = new Map<string, typeof Attribute>([
-    ['boolean', BooleanAttribute],
-    ['string', StringAttribute],
+  propMeta: ComponentCompilerProperty,
+): Prop {
+  const attributeClassByType = new Map<string, typeof Prop>([
+    ['boolean', BooleanProp],
+    ['string', StringProp],
   ]);
 
   const attributeClassForProp =
-    attributeClassByType.get(prop.type) || UnsupportedAttribute;
+    attributeClassByType.get(propMeta.type) || UnsupportedProp;
 
-  const attribute = new attributeClassForProp(cmpMeta, prop);
+  const attribute = new attributeClassForProp(cmpMeta, propMeta);
 
   if (!attribute.isSupported()) {
     config.logger?.warn(
-      `Component "${cmpMeta.tagName}" prop "${prop.name}" of type "${prop.type}" is not supported by Elm output target.`,
+      `Component "${cmpMeta.tagName}" prop "${propMeta.name}" of type "${propMeta.type}" is not supported by Elm output target.`,
     );
   }
 
   return attribute;
 }
 
-function event(eventMeta: ComponentCompilerEvent): { name: string } | null {
-  // TODO support decoding CustomEvent detail values
-  return { name: eventMeta.name };
+function eventFromMetadata(
+  config: Config,
+  cmpMeta: ComponentCompilerMeta,
+  eventMeta: ComponentCompilerEvent,
+): Event {
+  const event = new Event(cmpMeta, eventMeta);
+
+  if (!event.isSupported()) {
+    config.logger?.warn(
+      `Component "${cmpMeta.tagName}" event "${eventMeta.name}" is not supported by Elm output target.`,
+    );
+  }
+
+  return event;
 }
 
-function eventElm(event: { name: string }): string {
-  return `on "${event.name}" (Decode.succeed attributes.${eventHandlerName(
-    event.name,
-  )})`;
-}
-
-function eventHandlerName(eventName: string) {
-  return `on${eventName.charAt(0).toUpperCase() + eventName.slice(1)}`;
-}
-
-class Attribute {
+class Prop {
   tagName: string;
   name: string;
   type: string;
+  required: boolean;
 
   constructor(cmpMeta: ComponentCompilerMeta, prop: ComponentCompilerProperty) {
     this.tagName = cmpMeta.tagName;
     this.name = prop.name;
     this.type = prop.type;
+    this.required = prop.required;
   }
 
   isSupported(): boolean {
@@ -196,49 +198,97 @@ class Attribute {
     throw new Error('not implemented');
   }
 
-  htmlAttributeExpression(): string {
+  maybeHtmlAttribute(): string {
     throw new Error('not implemented');
   }
 }
 
-class UnsupportedAttribute extends Attribute {
+class UnsupportedProp extends Prop {
   isSupported(): boolean {
     return false;
   }
 }
 
-class BooleanAttribute extends Attribute {
+class BooleanProp extends Prop {
   isSupported(): boolean {
     return true;
   }
 
   configFieldTypeAnnotation(): string {
-    return `${this.name} : Bool`;
+    return `${this.name} : ${!this.required ? 'Maybe ' : ''}Bool`;
   }
 
-  htmlAttributeExpression(): string {
-    return [
-      `attribute "${this.name}"`,
-      `            (if attributes.${this.name} then`,
-      `                "true"`,
-      ``,
-      `             else`,
-      `                "false"`,
-      `            )`,
-    ].join('\n');
+  maybeHtmlAttribute(): string {
+    return (this.required
+      ? [
+          `Just (attribute "${this.name}"`,
+          `            (if attributes.${this.name} then`,
+          `                "true"`,
+          ``,
+          `             else`,
+          `                "false"`,
+          `            ))`,
+        ]
+      : [
+          `Maybe.map`,
+          `            (\\value ->`,
+          `                attribute "${this.name}"`,
+          `                    (if value then`,
+          `                        "true"`,
+          ``,
+          `                     else`,
+          `                        "false"`,
+          `                    )`,
+          `            )`,
+          `            attributes.${this.name}`,
+        ]
+    ).join('\n');
   }
 }
 
-class StringAttribute extends Attribute {
+class StringProp extends Prop {
   isSupported(): boolean {
     return true;
   }
 
   configFieldTypeAnnotation(): string {
-    return `${this.name} : String`;
+    return `${this.name} : ${!this.required ? 'Maybe ' : ''}String`;
   }
 
-  htmlAttributeExpression(): string {
-    return `attribute "${this.name}" attributes.${this.name}`;
+  maybeHtmlAttribute(): string {
+    return this.required
+      ? `Just (attribute "${this.name}" attributes.${this.name})`
+      : `Maybe.map (attribute "${this.name}") attributes.${this.name}`;
+  }
+}
+
+class Event {
+  // TODO support decoding CustomEvent detail values
+  tagName: string;
+  name: string;
+
+  constructor(cmpMeta: ComponentCompilerMeta, event: ComponentCompilerEvent) {
+    this.tagName = cmpMeta.tagName;
+    this.name = event.name;
+  }
+
+  isSupported(): boolean {
+    return true;
+  }
+
+  configFieldTypeAnnotation(): string {
+    return `${this.eventHandlerName()} : Maybe msg`;
+  }
+
+  maybeHtmlAttribute(): string {
+    return [
+      `Maybe.map`,
+      `            (\\msg -> on "${this.name}" (Decode.succeed msg))`,
+      `            attributes.${this.eventHandlerName()}`,
+    ].join('\n');
+  }
+
+  private eventHandlerName() {
+    return `on${this.name.charAt(0).toUpperCase() + this.name.slice(1)}`;
   }
 }
