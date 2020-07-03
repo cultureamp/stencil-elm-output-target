@@ -81,26 +81,23 @@ function componentElm(
 ): string {
   const tagNameAsCamel = dashToCamelCase(cmpMeta.tagName);
 
-  const supportedProps: Prop[] = cmpMeta.properties
-    .map(propFromMetadata.bind(this, config, cmpMeta))
-    .filter((prop) => prop.isSupported());
-
-  const supportedEvents: Event[] = cmpMeta.events
-    .map(eventFromMetadata.bind(this, config, cmpMeta))
-    .filter((event) => event.isSupported());
+  const configItems: (Prop | Event)[] = [
+    cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
+    cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
+  ]
+    .flat()
+    .filter((item) => item.isSupported());
 
   const takesChildren: boolean = cmpMeta.htmlTagNames.includes('slot');
 
   const elementFunctionType: string = [
-    supportedProps.length > 0 &&
-      '{ ' +
-        [
-          supportedProps.map((prop) => prop.configFieldTypeAnnotation()),
-          supportedEvents.map((event) => event.configFieldTypeAnnotation()),
-        ]
-          .flat()
-          .join('\n    , ') +
-        '\n    }',
+    (configItems.length === 1 && configItems[0].configArgTypeAnnotation()) ||
+      (configItems.length > 1 &&
+        '{ ' +
+          configItems
+            .map((item) => item.configFieldTypeAnnotation())
+            .join('\n    , ') +
+          '\n    }'),
     takesChildren && 'List (Html msg)',
     'Html msg',
   ]
@@ -108,15 +105,14 @@ function componentElm(
     .join('\n    -> ');
 
   const elementAttributesArg: string =
-    supportedProps.length > 0 ? 'attributes ' : '';
+    (configItems.length === 1 && `${configItems[0].configArgName()} `) ||
+    (configItems.length > 1 && 'attributes ') ||
+    '';
 
   const attributes = [
     '([ ' +
-      [
-        supportedProps.map((prop) => prop.maybeHtmlAttribute()),
-        supportedEvents.map((event) => event.maybeHtmlAttribute()),
-      ]
-        .flat()
+      configItems
+        .map((item) => item.maybeHtmlAttribute(configItems.length === 1))
         .join('\n         , '),
     '         ]',
     '            |> List.filterMap identity',
@@ -195,10 +191,18 @@ class Prop {
   }
 
   configFieldTypeAnnotation(): string {
+    return `${this.configArgName()} : ${this.configArgTypeAnnotation()}`;
+  }
+
+  configArgName(): string {
+    return this.name;
+  }
+
+  configArgTypeAnnotation(): string {
     throw new Error('not implemented');
   }
 
-  maybeHtmlAttribute(): string {
+  maybeHtmlAttribute(isOnly: boolean): string {
     throw new Error('not implemented');
   }
 }
@@ -214,15 +218,17 @@ class BooleanProp extends Prop {
     return true;
   }
 
-  configFieldTypeAnnotation(): string {
-    return `${this.name} : ${!this.required ? 'Maybe ' : ''}Bool`;
+  configArgTypeAnnotation(): string {
+    return `${!this.required ? 'Maybe ' : ''}Bool`;
   }
 
-  maybeHtmlAttribute(): string {
+  maybeHtmlAttribute(isOnly: boolean): string {
     return (this.required
       ? [
           `Just (attribute "${this.name}"`,
-          `            (if attributes.${this.name} then`,
+          `            (if ${(!isOnly && 'attributes.') || ''}${
+            this.name
+          } then`,
           `                "true"`,
           ``,
           `             else`,
@@ -240,7 +246,7 @@ class BooleanProp extends Prop {
           `                        "false"`,
           `                    )`,
           `            )`,
-          `            attributes.${this.name}`,
+          `            ${(!isOnly && 'attributes.') || ''}${this.name}`,
         ]
     ).join('\n');
   }
@@ -251,14 +257,18 @@ class StringProp extends Prop {
     return true;
   }
 
-  configFieldTypeAnnotation(): string {
-    return `${this.name} : ${!this.required ? 'Maybe ' : ''}String`;
+  configArgTypeAnnotation(): string {
+    return `${!this.required ? 'Maybe ' : ''}String`;
   }
 
-  maybeHtmlAttribute(): string {
+  maybeHtmlAttribute(isOnly: boolean): string {
     return this.required
-      ? `Just (attribute "${this.name}" attributes.${this.name})`
-      : `Maybe.map (attribute "${this.name}") attributes.${this.name}`;
+      ? `Just (attribute "${this.name}" ${(!isOnly && 'attributes.') || ''}${
+          this.name
+        })`
+      : `Maybe.map (attribute "${this.name}") ${
+          (!isOnly && 'attributes.') || ''
+        }${this.name}`;
   }
 }
 
@@ -277,14 +287,24 @@ class Event {
   }
 
   configFieldTypeAnnotation(): string {
-    return `${this.eventHandlerName()} : Maybe msg`;
+    return `${this.configArgName()} : ${this.configArgTypeAnnotation()}`;
   }
 
-  maybeHtmlAttribute(): string {
+  configArgName(): string {
+    return this.eventHandlerName();
+  }
+
+  configArgTypeAnnotation(): string {
+    return 'Maybe msg';
+  }
+
+  maybeHtmlAttribute(isOnly: boolean): string {
     return [
       `Maybe.map`,
       `            (\\msg -> on "${this.name}" (Decode.succeed msg))`,
-      `            attributes.${this.eventHandlerName()}`,
+      `            ${
+        (!isOnly && 'attributes.') || ''
+      }${this.eventHandlerName()}`,
     ].join('\n');
   }
 
