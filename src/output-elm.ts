@@ -44,7 +44,6 @@ async function generateProxyElmModule(
   components: ComponentCompilerMeta[],
   outputTarget: OutputTargetElm,
 ) {
-  // TODO don't expose all
   const moduleDeclaration = `module ${outputTarget.proxiesModuleName} exposing
     ( ${components
       .map((c) => dashToCamelCase(c.tagName))
