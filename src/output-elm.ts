@@ -46,7 +46,8 @@ async function generateProxyElmModule(
 ) {
   const moduleDeclaration = `module ${outputTarget.proxiesModuleName} exposing
     ( ${components
-      .map((c) => dashToCamelCase(c.tagName))
+      .map(componentExposures.bind(this, config))
+      .flat()
       .join('\n    , ')}\n    )\n`;
 
   const imports = `import Html exposing (Html, node)
@@ -59,7 +60,7 @@ import Json.Decode as Decode\n\n\n`;
 
   const generatedCode = components
     .map(componentElm.bind(this, config))
-    .join('\n');
+    .join('\n\n\n');
 
   const moduleSrcParts: string[] = [
     moduleDeclaration,
@@ -68,9 +69,28 @@ import Json.Decode as Decode\n\n\n`;
     generatedCode,
   ];
 
-  const moduleSrc = moduleSrcParts.join('\n') + '\n';
+  const moduleSrc = moduleSrcParts.join('\n');
 
   return compilerCtx.fs.writeFile(outputTarget.proxiesFile, moduleSrc);
+}
+
+function componentExposures(
+  this: void,
+  config: Config,
+  cmpMeta: ComponentCompilerMeta,
+): string[] {
+  return [
+    dashToCamelCase(cmpMeta.tagName),
+    ...[
+      cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
+      cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
+    ]
+      .flat()
+      .filter((item) => item.isSupported())
+      .map((item) => item.customTypeName())
+      .filter((maybeNull) => maybeNull !== null)
+      .map((item) => `${item}(..)`),
+  ];
 }
 
 function componentElm(
@@ -123,13 +143,24 @@ function componentElm(
   const children = takesChildren ? 'children' : '[]';
 
   return [
-    `${tagNameAsCamel} :`,
-    `    ${elementFunctionType}`,
-    `${tagNameAsCamel} ${elementAttributesArg}${elementChildrenArg}=`,
-    `    node "${cmpMeta.tagName}"`,
-    `        ${attributes}`,
-    `        ${children}\n\n`,
-  ].join('\n');
+    [
+      `${tagNameAsCamel} :`,
+      `    ${elementFunctionType}`,
+      `${tagNameAsCamel} ${elementAttributesArg}${elementChildrenArg}=`,
+      `    node "${cmpMeta.tagName}"`,
+      `        ${attributes}`,
+      `        ${children}`,
+    ],
+    configItems
+      .map((item) => item.customTypeDeclaration())
+      .filter((maybeNull) => maybeNull !== null),
+    configItems
+      .map((item) => item.customTypeEncoder())
+      .filter((maybeNull) => maybeNull !== null),
+  ]
+    .filter((arr) => arr.length > 0)
+    .map((arr) => arr.join('\n'))
+    .join('\n\n\n');
 }
 
 function propFromMetadata(
@@ -143,6 +174,10 @@ function propFromMetadata(
   }[] = [
     { ifTypeMatches: /^boolean$/, thenPropClass: BooleanProp },
     { ifTypeMatches: /^string$/, thenPropClass: StringProp },
+    {
+      ifTypeMatches: /^("[^"]*" \| )*"[^"]*"$/, // '"foo" | "bar" | "baz"'
+      thenPropClass: EnumeratedStringProp,
+    },
   ];
 
   const propClass =
@@ -194,6 +229,18 @@ class Prop {
     throw new Error('not implemented');
   }
 
+  customTypeDeclaration(): string | null {
+    throw new Error('not implemented');
+  }
+
+  customTypeEncoder(): string | null {
+    throw new Error('not implemented');
+  }
+
+  customTypeName(): string | null {
+    throw new Error('not implemented');
+  }
+
   configFieldTypeAnnotation(): string {
     return `${this.configArgName()} : ${this.configArgTypeAnnotation()}`;
   }
@@ -222,6 +269,18 @@ class BooleanProp extends Prop {
     return true;
   }
 
+  customTypeDeclaration(): null {
+    return null;
+  }
+
+  customTypeEncoder(): null {
+    return null;
+  }
+
+  customTypeName(): null {
+    return null;
+  }
+
   configArgTypeAnnotation(): string {
     return `${!this.required ? 'Maybe ' : ''}Bool`;
   }
@@ -230,9 +289,9 @@ class BooleanProp extends Prop {
     return (this.required
       ? [
           `Just (attribute "${this.name}"`,
-          `            (if ${(!isOnly && 'attributes.') || ''}${
-            this.name
-          } then`,
+          `            (if ${
+            (!isOnly && 'attributes.') || ''
+          }${this.configArgName()} then`,
           `                "true"`,
           ``,
           `             else`,
@@ -250,7 +309,9 @@ class BooleanProp extends Prop {
           `                        "false"`,
           `                    )`,
           `            )`,
-          `            ${(!isOnly && 'attributes.') || ''}${this.name}`,
+          `            ${
+            (!isOnly && 'attributes.') || ''
+          }${this.configArgName()}`,
         ]
     ).join('\n');
   }
@@ -261,18 +322,126 @@ class StringProp extends Prop {
     return true;
   }
 
+  customTypeDeclaration(): null {
+    return null;
+  }
+
+  customTypeEncoder(): null {
+    return null;
+  }
+
+  customTypeName(): null {
+    return null;
+  }
+
   configArgTypeAnnotation(): string {
     return `${!this.required ? 'Maybe ' : ''}String`;
   }
 
   maybeHtmlAttribute(isOnly: boolean): string {
     return this.required
-      ? `Just (attribute "${this.name}" ${(!isOnly && 'attributes.') || ''}${
-          this.name
-        })`
+      ? `Just (attribute "${this.name}" ${
+          (!isOnly && 'attributes.') || ''
+        }${this.configArgName()})`
       : `Maybe.map (attribute "${this.name}") ${
           (!isOnly && 'attributes.') || ''
-        }${this.name}`;
+        }${this.configArgName()}`;
+  }
+}
+
+class EnumeratedStringProp extends Prop {
+  complexType: string; // '"foo" | "bar" | "baz"'
+
+  constructor(cmpMeta: ComponentCompilerMeta, prop: ComponentCompilerProperty) {
+    super(cmpMeta, prop);
+
+    this.complexType = prop.complexType.original;
+  }
+
+  isSupported(): boolean {
+    return true;
+  }
+
+  customTypeDeclaration(): string {
+    return [
+      `type ${this.customTypeName()}`,
+      `    = ${this.customTypeConstructors().join('\n    | ')}`,
+    ].join('\n');
+  }
+
+  customTypeEncoder(): string {
+    return [
+      [
+        `${this.configArgName()}ToString : ${this.customTypeName()} -> String`,
+        `${this.configArgName()}ToString ${this.configArgName()} =`,
+        `    case ${this.configArgName()} of`,
+      ],
+      this.stringValues().map((value) =>
+        [
+          `        ${this.constructorForStringValue(value)} ->`,
+          `            "${value}"\n`,
+        ].join('\n'),
+      ),
+    ]
+      .flat()
+      .join('\n');
+  }
+
+  private customTypeConstructors() {
+    return this.stringValues().map(this.constructorForStringValue, this);
+  }
+
+  private stringValues() {
+    return this.complexType.split(' | ').map((str) => {
+      try {
+        return JSON.parse(str);
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          throw new Error(
+            `Component "${this.tagName}" prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
+          );
+        }
+        throw e;
+      }
+    });
+  }
+
+  private constructorForStringValue(str: string): string {
+    if (str.match(/[a-z]+/i)) {
+      return this.capitalize(str);
+    }
+
+    throw new Error(
+      `Component "${this.tagName}" prop "${this.name}" value "${str}" cannot be converted to an Elm custom type constructor name. This should be a relatively easy enhancement to the Elm output target if you need to support it, however.`,
+    );
+  }
+
+  customTypeName(): string {
+    return this.capitalize(this.name);
+  }
+
+  configArgTypeAnnotation(): string {
+    return `${!this.required ? 'Maybe ' : ''}${this.customTypeName()}`;
+  }
+
+  private capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  maybeHtmlAttribute(isOnly: boolean): string {
+    return this.required
+      ? `Just (attribute "${this.name}" (${this.configArgName()}ToString ${
+          (!isOnly && 'attributes.') || ''
+        }${this.configArgName()}))`
+      : [
+          `Maybe.map`,
+          `            (\\value -> attribute "${
+            this.name
+          }" (${this.configArgName()}ToString value))`,
+          `            ${
+            (!isOnly && 'attributes.') || ''
+          }${this.configArgName()}`,
+        ].join('\n');
   }
 }
 
@@ -288,6 +457,18 @@ class Event {
 
   isSupported(): boolean {
     return true;
+  }
+
+  customTypeDeclaration(): null {
+    return null;
+  }
+
+  customTypeEncoder(): null {
+    return null;
+  }
+
+  customTypeName(): null {
+    return null;
   }
 
   configFieldTypeAnnotation(): string {
