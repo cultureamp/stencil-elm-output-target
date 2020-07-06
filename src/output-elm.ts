@@ -137,23 +137,28 @@ function propFromMetadata(
   cmpMeta: ComponentCompilerMeta,
   propMeta: ComponentCompilerProperty,
 ): Prop {
-  const attributeClassByType = new Map<string, typeof Prop>([
-    ['boolean', BooleanProp],
-    ['string', StringProp],
-  ]);
+  const propClassByType: {
+    ifTypeMatches: RegExp;
+    thenPropClass: typeof Prop;
+  }[] = [
+    { ifTypeMatches: /^boolean$/, thenPropClass: BooleanProp },
+    { ifTypeMatches: /^string$/, thenPropClass: StringProp },
+  ];
 
-  const attributeClassForProp =
-    attributeClassByType.get(propMeta.type) || UnsupportedProp;
+  const propClass =
+    propClassByType.find(({ ifTypeMatches }) =>
+      ifTypeMatches.test(propMeta.complexType.original),
+    )?.thenPropClass || UnsupportedProp;
 
-  const attribute = new attributeClassForProp(cmpMeta, propMeta);
+  const prop = new propClass(cmpMeta, propMeta);
 
-  if (!attribute.isSupported()) {
+  if (!prop.isSupported()) {
     config.logger?.warn(
-      `Component "${cmpMeta.tagName}" prop "${propMeta.name}" of type "${propMeta.type}" is not supported by Elm output target.`,
+      `Component "${cmpMeta.tagName}" prop "${propMeta.name}" of type ${propMeta.complexType.original} is not supported by Elm output target.`,
     );
   }
 
-  return attribute;
+  return prop;
 }
 
 function eventFromMetadata(
