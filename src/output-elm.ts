@@ -102,6 +102,7 @@ function componentElm(
 
   const configItems: (Prop | Event)[] = [
     cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
+    new StringProp(cmpMeta, { name: 'slot', type: 'string', required: false }),
     cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
   ]
     .flat()
@@ -218,7 +219,10 @@ class Prop {
   type: string;
   required: boolean;
 
-  constructor(cmpMeta: ComponentCompilerMeta, prop: ComponentCompilerProperty) {
+  constructor(
+    cmpMeta: { tagName: string },
+    prop: { name: string; type: string; required: boolean },
+  ) {
     this.tagName = cmpMeta.tagName;
     this.name = prop.name;
     this.type = prop.type;
