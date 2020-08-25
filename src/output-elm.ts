@@ -1,5 +1,6 @@
+import path from 'path';
 import { OutputTargetElm } from './types';
-import { sortBy, dashToCamelCase } from './utils';
+import { capitalize, dashToCamelCase, sortBy } from './utils';
 import {
   CompilerCtx,
   ComponentCompilerMeta,
@@ -19,7 +20,7 @@ export async function elmProxyOutput(
     components,
   );
 
-  await generateProxyElmModule(
+  await generateProxyElmModules(
     compilerCtx,
     config,
     filteredComponents,
@@ -37,18 +38,33 @@ function getFilteredComponents(
   );
 }
 
-async function generateProxyElmModule(
+async function generateProxyElmModules(
   this: void,
   compilerCtx: CompilerCtx,
   config: Config,
   components: ComponentCompilerMeta[],
   outputTarget: OutputTargetElm,
 ) {
-  const moduleDeclaration = `module ${outputTarget.proxiesModuleName} exposing
-    ( ${components
-      .map(componentExposures.bind(this, config))
-      .flat()
-      .join('\n    , ')}\n    )\n`;
+  return Promise.all(
+    components.map(
+      generateProxyElmModule.bind(this, compilerCtx, config, outputTarget),
+    ),
+  );
+}
+
+async function generateProxyElmModule(
+  this: void,
+  compilerCtx: CompilerCtx,
+  config: Config,
+  outputTarget: OutputTargetElm,
+  cmpMeta: ComponentCompilerMeta,
+) {
+  const moduleName = `${path.basename(
+    outputTarget.proxiesModuleDir,
+  )}.${capitalize(dashToCamelCase(cmpMeta.tagName))}`;
+
+  const moduleDeclaration = `module ${moduleName} exposing
+    ( ${componentExposures(config, cmpMeta).join('\n    , ')}\n    )\n`;
 
   const imports = `import Html exposing (Html, node)
 import Html.Attributes exposing (attribute)
@@ -56,22 +72,23 @@ import Html.Events exposing (on)
 import Json.Decode as Decode\n\n\n`;
 
   const codegenWarningComment =
-    '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENTS\n\n';
+    '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENT\n\n';
 
-  const generatedCode = components
-    .map(componentElm.bind(this, config))
-    .join('\n\n\n');
+  const generatedCode = componentElm(config, cmpMeta);
 
-  const moduleSrcParts: string[] = [
+  const filePath: string = path.join(
+    outputTarget.proxiesModuleDir,
+    `${capitalize(dashToCamelCase(cmpMeta.tagName))}.elm`,
+  );
+
+  const moduleSrc: string = [
     moduleDeclaration,
     imports,
     codegenWarningComment,
     generatedCode,
-  ];
+  ].join('\n');
 
-  const moduleSrc = moduleSrcParts.join('\n');
-
-  return compilerCtx.fs.writeFile(outputTarget.proxiesFile, moduleSrc);
+  return compilerCtx.fs.writeFile(filePath, moduleSrc);
 }
 
 function componentExposures(
@@ -80,7 +97,7 @@ function componentExposures(
   cmpMeta: ComponentCompilerMeta,
 ): string[] {
   return [
-    dashToCamelCase(cmpMeta.tagName),
+    'view',
     ...[
       cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
       cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
@@ -98,8 +115,6 @@ function componentElm(
   config: Config,
   cmpMeta: ComponentCompilerMeta,
 ): string {
-  const tagNameAsCamel = dashToCamelCase(cmpMeta.tagName);
-
   const configItems: (Prop | Event)[] = [
     cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
     new StringProp(cmpMeta, { name: 'slot', type: 'string', required: false }),
@@ -145,9 +160,9 @@ function componentElm(
 
   return [
     [
-      `${tagNameAsCamel} :`,
+      `view :`,
       `    ${elementFunctionType}`,
-      `${tagNameAsCamel} ${elementAttributesArg}${elementChildrenArg}=`,
+      `view ${elementAttributesArg}${elementChildrenArg}=`,
       `    node "${cmpMeta.tagName}"`,
       `        ${attributes}`,
       `        ${children}`,
@@ -412,7 +427,7 @@ class EnumeratedStringProp extends Prop {
 
   private constructorForStringValue(str: string): string {
     if (str.match(/[a-z]+/i)) {
-      return this.capitalize(str);
+      return capitalize(str);
     }
 
     throw new Error(
@@ -421,15 +436,11 @@ class EnumeratedStringProp extends Prop {
   }
 
   customTypeName(): string {
-    return this.capitalize(this.name);
+    return capitalize(this.name);
   }
 
   configArgTypeAnnotation(): string {
     return `${!this.required ? 'Maybe ' : ''}${this.customTypeName()}`;
-  }
-
-  private capitalize(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
   maybeHtmlAttribute(isOnly: boolean): string {

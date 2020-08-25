@@ -1,5 +1,4 @@
 export interface OutputTargetElm {
-  proxiesFile: string;
-  proxiesModuleName: string;
+  proxiesModuleDir: string;
   excludeComponents?: string[];
 }
