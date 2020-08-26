@@ -17,7 +17,7 @@ export const elmOutputTarget = (
 
     await elmProxyOutput(
       compilerCtx,
-      outputTarget,
+      normalizeOutputTarget(config, outputTarget),
       buildCtx.components,
       config,
     );
