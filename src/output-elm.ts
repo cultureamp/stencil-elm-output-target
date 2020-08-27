@@ -115,7 +115,7 @@ function componentElm(
   config: Config,
   cmpMeta: ComponentCompilerMeta,
 ): string {
-  const configItems: (Prop | Event)[] = [
+  const attributeConfigs: (Prop | Event)[] = [
     cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
     new StringProp(cmpMeta, { name: 'slot', type: 'string', required: false }),
     cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
@@ -126,10 +126,11 @@ function componentElm(
   const takesChildren: boolean = cmpMeta.htmlTagNames.includes('slot');
 
   const elementFunctionType: string = [
-    (configItems.length === 1 && configItems[0].configArgTypeAnnotation()) ||
-      (configItems.length > 1 &&
+    (attributeConfigs.length === 1 &&
+      attributeConfigs[0].configArgTypeAnnotation()) ||
+      (attributeConfigs.length > 1 &&
         '{ ' +
-          configItems
+          attributeConfigs
             .map((item) => item.configFieldTypeAnnotation())
             .join('\n    , ') +
           '\n    }'),
@@ -140,14 +141,15 @@ function componentElm(
     .join('\n    -> ');
 
   const elementAttributesArg: string =
-    (configItems.length === 1 && `${configItems[0].configArgName()} `) ||
-    (configItems.length > 1 && 'attributes ') ||
+    (attributeConfigs.length === 1 &&
+      `${attributeConfigs[0].attributeName()} `) ||
+    (attributeConfigs.length > 1 && 'attributes ') ||
     '';
 
   const attributes = [
     '([ ' +
-      configItems
-        .map((item) => item.maybeHtmlAttribute(configItems.length === 1))
+      attributeConfigs
+        .map((item) => item.maybeHtmlAttribute(attributeConfigs.length === 1))
         .join('\n         , '),
     '         ]',
     '            |> List.filterMap identity',
@@ -167,10 +169,10 @@ function componentElm(
       `        ${attributes}`,
       `        ${children}`,
     ],
-    configItems
+    attributeConfigs
       .map((item) => item.customTypeDeclaration())
       .filter((maybeNull) => maybeNull !== null),
-    configItems
+    attributeConfigs
       .map((item) => item.customTypeEncoder())
       .filter((maybeNull) => maybeNull !== null),
   ]
@@ -261,10 +263,10 @@ class Prop {
   }
 
   configFieldTypeAnnotation(): string {
-    return `${this.configArgName()} : ${this.configArgTypeAnnotation()}`;
+    return `${this.attributeName()} : ${this.configArgTypeAnnotation()}`;
   }
 
-  configArgName(): string {
+  attributeName(): string {
     return this.name;
   }
 
@@ -310,7 +312,7 @@ class BooleanProp extends Prop {
           `Just (attribute "${this.name}"`,
           `            (if ${
             (!isOnly && 'attributes.') || ''
-          }${this.configArgName()} then`,
+          }${this.attributeName()} then`,
           `                "true"`,
           ``,
           `             else`,
@@ -330,7 +332,7 @@ class BooleanProp extends Prop {
           `            )`,
           `            ${
             (!isOnly && 'attributes.') || ''
-          }${this.configArgName()}`,
+          }${this.attributeName()}`,
         ]
     ).join('\n');
   }
@@ -361,10 +363,10 @@ class StringProp extends Prop {
     return this.required
       ? `Just (attribute "${this.name}" ${
           (!isOnly && 'attributes.') || ''
-        }${this.configArgName()})`
+        }${this.attributeName()})`
       : `Maybe.map (attribute "${this.name}") ${
           (!isOnly && 'attributes.') || ''
-        }${this.configArgName()}`;
+        }${this.attributeName()}`;
   }
 }
 
@@ -391,9 +393,9 @@ class EnumeratedStringProp extends Prop {
   customTypeEncoder(): string {
     return [
       [
-        `${this.configArgName()}ToString : ${this.customTypeName()} -> String`,
-        `${this.configArgName()}ToString ${this.configArgName()} =`,
-        `    case ${this.configArgName()} of`,
+        `${this.attributeName()}ToString : ${this.customTypeName()} -> String`,
+        `${this.attributeName()}ToString ${this.attributeName()} =`,
+        `    case ${this.attributeName()} of`,
       ],
       this.stringValues().map((value) =>
         [
@@ -445,17 +447,17 @@ class EnumeratedStringProp extends Prop {
 
   maybeHtmlAttribute(isOnly: boolean): string {
     return this.required
-      ? `Just (attribute "${this.name}" (${this.configArgName()}ToString ${
+      ? `Just (attribute "${this.name}" (${this.attributeName()}ToString ${
           (!isOnly && 'attributes.') || ''
-        }${this.configArgName()}))`
+        }${this.attributeName()}))`
       : [
           `Maybe.map`,
           `            (\\value -> attribute "${
             this.name
-          }" (${this.configArgName()}ToString value))`,
+          }" (${this.attributeName()}ToString value))`,
           `            ${
             (!isOnly && 'attributes.') || ''
-          }${this.configArgName()}`,
+          }${this.attributeName()}`,
         ].join('\n');
   }
 }
@@ -487,10 +489,10 @@ class Event {
   }
 
   configFieldTypeAnnotation(): string {
-    return `${this.configArgName()} : ${this.configArgTypeAnnotation()}`;
+    return `${this.attributeName()} : ${this.configArgTypeAnnotation()}`;
   }
 
-  configArgName(): string {
+  attributeName(): string {
     return this.eventHandlerName();
   }
 
