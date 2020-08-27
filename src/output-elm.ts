@@ -192,6 +192,7 @@ function propFromMetadata(
   }[] = [
     { ifTypeMatches: /^boolean$/, thenPropClass: BooleanProp },
     { ifTypeMatches: /^string$/, thenPropClass: StringProp },
+    { ifTypeMatches: /^object$/, thenPropClass: AnyObjectProp },
     {
       ifTypeMatches: /^("[^"]*" \| )*"[^"]*"$/, // '"foo" | "bar" | "baz"'
       thenPropClass: EnumeratedStringProp,
@@ -199,8 +200,10 @@ function propFromMetadata(
   ];
 
   const propClass =
-    propClassByType.find(({ ifTypeMatches }) =>
-      ifTypeMatches.test(propMeta.complexType.original),
+    propClassByType.find(
+      ({ ifTypeMatches }) =>
+        ifTypeMatches.test(propMeta.complexType.original) ||
+        ifTypeMatches.test(propMeta.complexType.resolved),
     )?.thenPropClass || UnsupportedProp;
 
   const prop = new propClass(cmpMeta, propMeta);
@@ -365,6 +368,40 @@ class StringProp extends Prop {
           (!isOnly && 'attributes.') || ''
         }${this.attributeName()})`
       : `Maybe.map (attribute "${this.name}") ${
+          (!isOnly && 'attributes.') || ''
+        }${this.attributeName()}`;
+  }
+}
+
+class AnyObjectProp extends Prop {
+  isSupported(): boolean {
+    return true;
+  }
+
+  customTypeDeclaration(): null {
+    return null;
+  }
+
+  customTypeEncoder(): null {
+    return null;
+  }
+
+  customTypeName(): null {
+    return null;
+  }
+
+  configArgTypeAnnotation(): string {
+    // TODO import Json.Encode.Value
+    return `${!this.required ? 'Maybe ' : ''}Value`;
+  }
+
+  maybeHtmlAttribute(isOnly: boolean): string {
+    // TODO import Html.Attributes.property
+    return this.required
+      ? `Just (property "${this.name}" ${
+          (!isOnly && 'attributes.') || ''
+        }${this.attributeName()})`
+      : `Maybe.map (property "${this.name}") ${
           (!isOnly && 'attributes.') || ''
         }${this.attributeName()}`;
   }
