@@ -15,7 +15,10 @@ export class Prop {
     propMeta: ComponentCompilerProperty,
   ) {
     this.propMeta = propMeta;
-    this.propType = propTypeFromMetadata(cmpMeta, propMeta);
+    this.propType = propTypeFromMetadata({
+      kind: 'component-property',
+      propMeta,
+    });
 
     if (!this.propType.isSupported()) {
       config.logger?.warn(

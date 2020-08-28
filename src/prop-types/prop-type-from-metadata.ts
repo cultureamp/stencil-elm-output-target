@@ -1,46 +1,38 @@
-import {
-  ComponentCompilerMeta,
-  ComponentCompilerProperty,
-} from '@stencil/core/internal';
 import { AnyObjectType } from './any-object-type';
 import { BooleanType } from './boolean-type';
 import { EnumeratedStringType } from './enumerated-string-type';
 import { FixedObjectType } from './fixed-object-type';
 import { StringType } from './string-type';
-import { Type } from './type';
+import { ConcreteTypeClass, Type } from './type';
+import { TypeMetadata } from './types';
 import { UnsupportedType } from './unsupported-type';
 
-export function propTypeFromMetadata(
-  cmpMeta: ComponentCompilerMeta,
-  propMeta: ComponentCompilerProperty,
-  nestedType?: { original: string; resolved: string },
-): Type {
-  const complexType = nestedType || propMeta.complexType;
+export function propTypeFromMetadata(metadata: TypeMetadata): Type {
+  const typeStrings: string[] =
+    metadata.kind === 'component-property'
+      ? [
+          metadata.propMeta.complexType.original,
+          metadata.propMeta.complexType.resolved,
+        ]
+      : [metadata.type];
 
-  return new (propTypeClassForType(complexType))(
-    cmpMeta,
-    propMeta,
+  return new (propTypeClassForType(typeStrings))(
+    metadata,
     propTypeFromMetadata,
-    complexType,
   );
 }
 
-function propTypeClassForType(complexType: {
-  original: string;
-  resolved: string;
-}): typeof Type {
+function propTypeClassForType(typeStrings: string[]): ConcreteTypeClass {
   return (
-    propTypeClassByType.find(
-      ({ ifTypeMatches }) =>
-        ifTypeMatches.test(complexType.original) ||
-        ifTypeMatches.test(complexType.resolved),
+    propTypeClassByType.find(({ ifTypeMatches }) =>
+      typeStrings.some((typeString) => ifTypeMatches.test(typeString)),
     )?.thenTypeClass || UnsupportedType
   );
 }
 
 const propTypeClassByType: {
   ifTypeMatches: RegExp;
-  thenTypeClass: typeof Type;
+  thenTypeClass: ConcreteTypeClass;
 }[] = [
   { ifTypeMatches: /^boolean$/, thenTypeClass: BooleanType },
   { ifTypeMatches: /^string$/, thenTypeClass: StringType },

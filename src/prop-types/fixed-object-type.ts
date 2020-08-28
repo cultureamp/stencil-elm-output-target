@@ -1,35 +1,35 @@
-import {
-  ComponentCompilerMeta,
-  ComponentCompilerProperty,
-} from '@stencil/core/internal';
 import { objectTypeParser } from '../object-type-parser';
-import { PropTypeFactory, Type } from './type';
+import { Type } from './type';
 import { capitalize } from '../utils';
+import { TypeFactory, TypeMetadata } from './types';
 
 export class FixedObjectType extends Type {
   name: string;
+  typeString: string;
   fields: { name: string; type: Type }[];
 
-  constructor(
-    cmpMeta: ComponentCompilerMeta,
-    propMeta: ComponentCompilerProperty,
-    propTypeFromMetadata: PropTypeFactory,
-    complexType: { original: string; resolved: string },
-  ) {
-    super(cmpMeta, propMeta, propTypeFromMetadata, complexType);
+  constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
+    super(metadata, typeFactory);
 
-    this.name = propMeta.name;
+    switch (metadata.kind) {
+      case 'component-property':
+        this.name = metadata.propMeta.name;
+        this.typeString = metadata.propMeta.complexType.resolved;
+        break;
+
+      case 'object-field':
+        this.name = metadata.name;
+        this.typeString = metadata.type;
+        break;
+    }
 
     // strip "undefined | " from the start of the type of an optional prop
-    const resolvedType = complexType.resolved.replace(/^undefined \| /, '');
+    const resolvedType = this.typeString.replace(/^undefined \| /, '');
     this.fields = objectTypeParser(resolvedType)
       .fields()
       .map(({ name, type }) => ({
         name,
-        type: propTypeFromMetadata(cmpMeta, propMeta, {
-          original: type,
-          resolved: type,
-        }),
+        type: typeFactory({ kind: 'object-field', name, type }),
       }));
   }
 

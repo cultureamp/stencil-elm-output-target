@@ -1,27 +1,42 @@
-import {
-  ComponentCompilerMeta,
-  ComponentCompilerProperty,
-} from '@stencil/core/internal';
-import { PropTypeFactory, Type } from './type';
+import { Type } from './type';
+import { TypeFactory, TypeMetadata } from './types';
 
 export class UnsupportedType extends Type {
-  original: string;
-  resolved: string;
+  metadata: TypeMetadata;
 
-  constructor(
-    cmpMeta: ComponentCompilerMeta,
-    propMeta: ComponentCompilerProperty,
-    propTypeFromMetadata: PropTypeFactory,
-    complexType: { original: string; resolved: string },
-  ) {
-    super(cmpMeta, propMeta, propTypeFromMetadata, complexType);
+  constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
+    super(metadata, typeFactory);
 
     // Store for inspection in a debugger if necessary
-    this.original = complexType.original;
-    this.resolved = complexType.resolved;
+    this.metadata = metadata;
   }
 
   isSupported(): boolean {
     return false;
+  }
+
+  annotation(): string {
+    throw new Error('Method not implemented.');
+  }
+  customTypeNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  customTypeDeclarations(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  typeAliasNames(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  typeAliasDeclarations(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  attributeEncoderName(): string | null {
+    throw new Error('Method not implemented.');
+  }
+  encoders(): string[] {
+    throw new Error('Method not implemented.');
+  }
+  isSettableAsElementAttribute(): boolean {
+    throw new Error('Method not implemented.');
   }
 }

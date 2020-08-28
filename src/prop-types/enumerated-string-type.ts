@@ -1,24 +1,25 @@
-import {
-  ComponentCompilerMeta,
-  ComponentCompilerProperty,
-} from '@stencil/core/internal';
 import { capitalize } from '../utils';
-import { PropTypeFactory, Type } from './type';
+import { Type } from './type';
+import { TypeFactory, TypeMetadata } from './types';
 
 export class EnumeratedStringType extends Type {
   name: string;
-  complexType: string; // '"foo" | "bar" | "baz"'
+  typeString: string; // '"foo" | "bar" | "baz"'
 
-  constructor(
-    cmpMeta: ComponentCompilerMeta,
-    propMeta: ComponentCompilerProperty,
-    propTypeFromMetadata: PropTypeFactory,
-    complexType: { original: string; resolved: string },
-  ) {
-    super(cmpMeta, propMeta, propTypeFromMetadata, complexType);
+  constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
+    super(metadata, typeFactory);
 
-    this.name = propMeta.name;
-    this.complexType = complexType.original;
+    switch (metadata.kind) {
+      case 'component-property':
+        this.name = metadata.propMeta.name;
+        this.typeString = metadata.propMeta.complexType.original;
+        break;
+
+      case 'object-field':
+        this.name = metadata.name;
+        this.typeString = metadata.type;
+        break;
+    }
   }
 
   isSupported(): boolean {
@@ -51,13 +52,13 @@ export class EnumeratedStringType extends Type {
   }
 
   private stringValues() {
-    return this.complexType.split(' | ').map((str) => {
+    return this.typeString.split(' | ').map((str) => {
       try {
         return JSON.parse(str);
       } catch (e) {
         if (e instanceof SyntaxError) {
           throw new Error(
-            `Component "${this.tagName}" prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
+            `Prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
           );
         }
         throw e;
@@ -71,7 +72,7 @@ export class EnumeratedStringType extends Type {
     }
 
     throw new Error(
-      `Component "${this.tagName}" prop "${this.name}" value "${str}" cannot be converted to an Elm custom type constructor name. This should be a relatively easy enhancement to the Elm output target if you need to support it, however.`,
+      `Prop "${this.name}" value "${str}" cannot be converted to an Elm custom type constructor name. This should be a relatively easy enhancement to the Elm output target if you need to support it, however.`,
     );
   }
 

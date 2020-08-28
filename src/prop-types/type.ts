@@ -1,65 +1,30 @@
-import {
-  ComponentCompilerMeta,
-  ComponentCompilerProperty,
-} from '@stencil/core/internal';
+import { TypeMetadata, TypeFactory } from './types';
 
-export type PropTypeFactory = (
-  cmpMeta: ComponentCompilerMeta,
-  propMeta: ComponentCompilerProperty,
-  nestedType?: { original: string; resolved: string },
-) => Type;
+export type ConcreteTypeClass = {
+  new (metadata: TypeMetadata, typeFactory: TypeFactory<Type>): Type;
+};
 
-export class Type {
-  tagName: string;
-  propTypeFromMetadata: PropTypeFactory;
-
+export abstract class Type {
   constructor(
-    cmpMeta: ComponentCompilerMeta,
-    propMeta: ComponentCompilerProperty,
-    propTypeFromMetadata: PropTypeFactory,
-    complexType: { original: string; resolved: string },
-  ) {
-    this.tagName = cmpMeta.tagName;
-    this.propTypeFromMetadata = propTypeFromMetadata;
-  }
+    protected metadata: TypeMetadata,
+    protected typeFactory: TypeFactory<Type>,
+  ) {}
 
-  isSupported(): boolean {
-    throw new Error('not implemented');
-  }
+  abstract isSupported(): boolean;
 
-  annotation(): string {
-    throw new Error('not implemented');
-  }
+  abstract annotation(): string;
 
-  customTypeNames(): string[] {
-    throw new Error('not implemented');
-  }
+  abstract customTypeNames(): string[];
 
-  customTypeDeclarations(): string[] {
-    throw new Error('not implemented');
-  }
+  abstract customTypeDeclarations(): string[];
 
-  typeAliasNames(): string[] {
-    throw new Error('not implemented');
-  }
+  abstract typeAliasNames(): string[];
 
-  typeAliasDeclarations(): string[] {
-    throw new Error('not implemented');
-  }
+  abstract typeAliasDeclarations(): string[];
 
-  attributeEncoderName(): string | null {
-    throw new Error('not implemented');
-  }
+  abstract attributeEncoderName(): string | null;
 
-  encoders(): string[] {
-    throw new Error('not implemented');
-  }
+  abstract encoders(): string[];
 
-  attributeFunction(): 'attribute' | 'property' {
-    throw new Error('not implemented');
-  }
-
-  isSettableAsElementAttribute(): boolean {
-    throw new Error('not implemented');
-  }
+  abstract isSettableAsElementAttribute(): boolean;
 }
