@@ -67,9 +67,10 @@ async function generateProxyElmModule(
     ( ${componentExposures(config, cmpMeta).join('\n    , ')}\n    )\n`;
 
   const imports = `import Html exposing (Html, node)
-import Html.Attributes exposing (attribute)
+import Html.Attributes exposing (attribute, property)
 import Html.Events exposing (on)
-import Json.Decode as Decode\n\n\n`;
+import Json.Decode as Decode
+import Json.Encode as Encode exposing (Value)\n\n\n`;
 
   const codegenWarningComment =
     '-- AUTO-GENERATED PROXIES FOR CUSTOM ELEMENT\n\n';
@@ -168,15 +169,16 @@ function componentElm(
       `    node "${cmpMeta.tagName}"`,
       `        ${attributes}`,
       `        ${children}`,
-    ],
+    ].join('\n'),
     attributeConfigs
       .map((item) => item.customTypeDeclaration())
-      .filter((maybeNull) => maybeNull !== null),
+      .filter((maybeNull) => maybeNull !== null)
+      .join('\n\n\n'),
     attributeConfigs
       .map((item) => item.customTypeEncoder())
-      .filter((maybeNull) => maybeNull !== null),
+      .filter((maybeNull) => maybeNull !== null)
+      .join('\n\n\n'),
   ]
-    .filter((arr) => arr.length > 0)
-    .map((arr) => arr.join('\n'))
+    .filter((str) => str.length > 0)
     .join('\n\n\n');
 }
