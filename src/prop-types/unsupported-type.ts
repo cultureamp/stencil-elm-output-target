@@ -33,6 +33,9 @@ export class UnsupportedType extends Type {
   attributeEncoderName(): string | null {
     throw new Error('Method not implemented.');
   }
+  jsonEncoderName(): string | null {
+    throw new Error('Method not implemented.');
+  }
   encoders(): string[] {
     throw new Error('Method not implemented.');
   }

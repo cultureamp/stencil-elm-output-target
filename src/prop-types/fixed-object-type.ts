@@ -59,6 +59,10 @@ export class FixedObjectType extends Type {
     return `${this.name}Encoder`;
   }
 
+  jsonEncoderName(): string {
+    return this.attributeEncoderName();
+  }
+
   encoders(): string[] {
     return [
       [
@@ -68,7 +72,11 @@ export class FixedObjectType extends Type {
         `        [ ${this.fields
           .map(
             (field) =>
-              `( "${field.name}", TODO_ENCODER ${this.name}.${field.name} )`,
+              `( "${field.name}", ${
+                field.type.jsonEncoderName()
+                  ? `${field.type.jsonEncoderName()} `
+                  : ''
+              }${this.name}.${field.name} )`,
           )
           .join('\n        , ')}`,
         `        ]`,

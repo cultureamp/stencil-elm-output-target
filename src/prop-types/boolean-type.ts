@@ -21,6 +21,10 @@ export class BooleanType extends Type {
     return 'boolToString';
   }
 
+  jsonEncoderName(): string {
+    return 'Encode.bool';
+  }
+
   encoders(): string[] {
     return [
       [

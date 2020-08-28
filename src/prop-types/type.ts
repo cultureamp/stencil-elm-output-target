@@ -24,6 +24,8 @@ export abstract class Type {
 
   abstract attributeEncoderName(): string | null;
 
+  abstract jsonEncoderName(): string | null;
+
   abstract encoders(): string[];
 
   abstract isSettableAsElementAttribute(): boolean;

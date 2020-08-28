@@ -21,6 +21,10 @@ export class AnyObjectType extends Type {
     return null;
   }
 
+  jsonEncoderName(): null {
+    return null;
+  }
+
   encoders(): string[] {
     return [];
   }

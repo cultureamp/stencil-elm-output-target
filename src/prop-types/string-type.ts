@@ -21,6 +21,10 @@ export class StringType extends Type {
     return null;
   }
 
+  jsonEncoderName(): string {
+    return 'Encode.string';
+  }
+
   encoders(): string[] {
     return [];
   }

@@ -80,6 +80,10 @@ export class EnumeratedStringType extends Type {
     return `${this.name}ToString`;
   }
 
+  jsonEncoderName(): string {
+    return `(${this.attributeEncoderName()} >> Encode.string)`;
+  }
+
   encoders(): string[] {
     return [
       [
