@@ -7,7 +7,7 @@ import {
   ComponentCompilerProperty,
   Config,
 } from '@stencil/core/internal';
-import { Event, eventFromMetadata } from './events';
+import { Event, eventFromMetadata } from './event';
 import { Prop } from './prop';
 
 export async function elmProxyOutput(
