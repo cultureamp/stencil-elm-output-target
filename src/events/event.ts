@@ -17,27 +17,31 @@ export class Event {
     return true;
   }
 
-  customTypeDeclaration(): null {
-    return null;
+  customTypeDeclarations(): string[] {
+    return [];
   }
 
-  customTypeEncoder(): null {
-    return null;
+  encoders(): string[] {
+    return [];
   }
 
-  customTypeName(): null {
-    return null;
+  customTypeNames(): string[] {
+    return [];
   }
 
-  configFieldTypeAnnotation(): string {
-    return `${this.attributeName()} : ${this.configArgTypeAnnotation()}`;
+  typeAliasNames(): string[] {
+    return [];
+  }
+
+  fieldTypeAnnotation(): string {
+    return `${this.attributeName()} : ${this.argTypeAnnotation()}`;
   }
 
   attributeName(): string {
     return this.eventHandlerName();
   }
 
-  configArgTypeAnnotation(): string {
+  argTypeAnnotation(): string {
     return 'Maybe msg';
   }
 

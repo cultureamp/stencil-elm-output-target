@@ -4,10 +4,11 @@ import { capitalize, dashToCamelCase, sortBy } from './utils';
 import {
   CompilerCtx,
   ComponentCompilerMeta,
+  ComponentCompilerProperty,
   Config,
 } from '@stencil/core/internal';
 import { Event, eventFromMetadata } from './events';
-import { Prop, StringProp, propFromMetadata } from './props';
+import { Prop } from './prop';
 
 export async function elmProxyOutput(
   compilerCtx: CompilerCtx,
@@ -97,17 +98,16 @@ function componentExposures(
   config: Config,
   cmpMeta: ComponentCompilerMeta,
 ): string[] {
+  const attributeConfigs = componentAttributeConfigs(config, cmpMeta);
+
   return [
     'view',
-    ...[
-      cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
-      cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
-    ]
-      .flat()
-      .filter((item) => item.isSupported())
-      .map((item) => item.customTypeName())
-      .filter((maybeNull) => maybeNull !== null)
-      .map((item) => `${item}(..)`),
+    ...attributeConfigs
+      .flatMap((attributeConfig) => attributeConfig.customTypeNames())
+      .map((attributeConfig) => `${attributeConfig}(..)`),
+    ...attributeConfigs.flatMap((attributeConfig) =>
+      attributeConfig.typeAliasNames(),
+    ),
   ];
 }
 
@@ -116,23 +116,16 @@ function componentElm(
   config: Config,
   cmpMeta: ComponentCompilerMeta,
 ): string {
-  const attributeConfigs: (Prop | Event)[] = [
-    cmpMeta.properties.map(propFromMetadata.bind(this, config, cmpMeta)),
-    new StringProp(cmpMeta, { name: 'slot', type: 'string', required: false }),
-    cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
-  ]
-    .flat()
-    .filter((item) => item.isSupported());
-
+  const attributeConfigs = componentAttributeConfigs(config, cmpMeta);
   const takesChildren: boolean = cmpMeta.htmlTagNames.includes('slot');
 
   const elementFunctionType: string = [
     (attributeConfigs.length === 1 &&
-      attributeConfigs[0].configArgTypeAnnotation()) ||
+      attributeConfigs[0].argTypeAnnotation()) ||
       (attributeConfigs.length > 1 &&
         '{ ' +
           attributeConfigs
-            .map((item) => item.configFieldTypeAnnotation())
+            .map((item) => item.fieldTypeAnnotation())
             .join('\n    , ') +
           '\n    }'),
     takesChildren && 'List (Html msg)',
@@ -171,14 +164,41 @@ function componentElm(
       `        ${children}`,
     ].join('\n'),
     attributeConfigs
-      .map((item) => item.customTypeDeclaration())
-      .filter((maybeNull) => maybeNull !== null)
+      .flatMap((item) => item.customTypeDeclarations())
       .join('\n\n\n'),
-    attributeConfigs
-      .map((item) => item.customTypeEncoder())
-      .filter((maybeNull) => maybeNull !== null)
-      .join('\n\n\n'),
+    attributeConfigs.flatMap((item) => item.encoders()).join('\n\n\n'),
   ]
     .filter((str) => str.length > 0)
     .join('\n\n\n');
+}
+
+function componentAttributeConfigs(
+  this: void,
+  config: Config,
+  cmpMeta: ComponentCompilerMeta,
+): (Prop | Event)[] {
+  return [
+    cmpMeta.properties.map((propMeta) => new Prop(config, cmpMeta, propMeta)),
+    new Prop(config, cmpMeta, slotProperty()),
+    cmpMeta.events.map(eventFromMetadata.bind(this, config, cmpMeta)),
+  ]
+    .flat()
+    .filter((item) => item.isSupported());
+}
+
+function slotProperty(): ComponentCompilerProperty {
+  return {
+    name: 'slot',
+    type: 'string',
+    required: false,
+    internal: false,
+    mutable: false,
+    optional: false,
+    docs: { text: '', tags: [] },
+    complexType: {
+      original: 'string',
+      resolved: 'string',
+      references: {},
+    },
+  };
 }
