@@ -17,6 +17,10 @@ export class Event {
     return true;
   }
 
+  customTypeNames(): string[] {
+    return [];
+  }
+
   customTypeDeclarations(): string[] {
     return [];
   }
@@ -25,11 +29,11 @@ export class Event {
     return [];
   }
 
-  customTypeNames(): string[] {
+  typeAliasNames(): string[] {
     return [];
   }
 
-  typeAliasNames(): string[] {
+  typeAliasDeclarations(): string[] {
     return [];
   }
 

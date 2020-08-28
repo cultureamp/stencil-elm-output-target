@@ -70,12 +70,16 @@ export class Prop {
     return this.propType.customTypeNames();
   }
 
+  customTypeDeclarations(): string[] {
+    return this.propType.customTypeDeclarations();
+  }
+
   typeAliasNames(): string[] {
     return this.propType.typeAliasNames();
   }
 
-  customTypeDeclarations(): string[] {
-    return this.propType.customTypeDeclarations();
+  typeAliasDeclarations(): string[] {
+    return this.propType.typeAliasDeclarations();
   }
 
   encoders(): string[] {

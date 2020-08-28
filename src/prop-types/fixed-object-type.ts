@@ -38,29 +38,21 @@ export class FixedObjectType extends Type {
   }
 
   annotation(): string {
-    return this.customTypeName();
+    return this.typeAliasName();
   }
 
   customTypeNames(): string[] {
-    return [this.customTypeName()];
-  }
-
-  private customTypeName(): string {
-    return capitalize(this.name);
+    return this.fields.flatMap(({ type }) => type.customTypeNames());
   }
 
   customTypeDeclarations(): string[] {
-    return [
-      [
-        `type alias ${this.customTypeName()} =`,
-        `    { ${this.customTypeFields().join('\n    , ')}`,
-        `    }`,
-      ].join('\n'),
-    ];
+    return this.fields.flatMap(({ type }) => type.customTypeDeclarations());
   }
 
   private customTypeFields(): string[] {
-    return this.fields.map(({ name }) => `${name} : TODO_TYPE`);
+    return this.fields.map(
+      ({ name, type }) => `${name} : ${type.annotation()}`,
+    );
   }
 
   attributeEncoderName(): string {
@@ -70,7 +62,7 @@ export class FixedObjectType extends Type {
   encoders(): string[] {
     return [
       [
-        `${this.name}Encoder : ${this.customTypeName()} -> Value`,
+        `${this.name}Encoder : ${this.typeAliasName()} -> Value`,
         `${this.name}Encoder ${this.name} =`,
         `    Encode.object`,
         `        [ ${this.fields
@@ -83,15 +75,30 @@ export class FixedObjectType extends Type {
       ]
         .flat()
         .join('\n'),
+      ...this.fields.flatMap(({ type }) => type.encoders()),
     ];
   }
 
   typeAliasNames(): string[] {
-    return [];
+    return [
+      this.typeAliasName(),
+      ...this.fields.flatMap(({ type }) => type.typeAliasNames()),
+    ];
+  }
+
+  private typeAliasName(): string {
+    return capitalize(this.name);
   }
 
   typeAliasDeclarations(): string[] {
-    return [];
+    return [
+      [
+        `type alias ${this.typeAliasName()} =`,
+        `    { ${this.customTypeFields().join('\n    , ')}`,
+        `    }`,
+      ].join('\n'),
+      ...this.fields.flatMap(({ type }) => type.typeAliasDeclarations()),
+    ];
   }
 
   isSettableAsElementAttribute(): boolean {

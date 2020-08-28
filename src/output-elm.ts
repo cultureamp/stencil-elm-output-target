@@ -163,10 +163,15 @@ function componentElm(
       `        ${attributes}`,
       `        ${children}`,
     ].join('\n'),
-    attributeConfigs
-      .flatMap((item) => item.customTypeDeclarations())
-      .join('\n\n\n'),
-    attributeConfigs.flatMap((item) => item.encoders()).join('\n\n\n'),
+    [
+      ...new Set( // remove duplicates
+        attributeConfigs.flatMap((attributeConfig) => [
+          ...attributeConfig.typeAliasDeclarations(),
+          ...attributeConfig.customTypeDeclarations(),
+          ...attributeConfig.encoders(),
+        ]),
+      ),
+    ].join('\n\n\n'),
   ]
     .filter((str) => str.length > 0)
     .join('\n\n\n');
