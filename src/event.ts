@@ -67,13 +67,14 @@ export class Event {
   }
 
   maybeHtmlAttribute(isOnly: boolean): string {
+    const attribute = (!isOnly ? 'attributes.' : '') + this.eventHandlerName();
+
     return [
-      `Maybe.map`,
-      `            (\\msg -> on "${this.name}" (Decode.succeed msg))`,
-      `            ${
-        (!isOnly && 'attributes.') || ''
-      }${this.eventHandlerName()}`,
-    ].join('\n');
+      `${attribute} |> `,
+      `Maybe.map (`,
+      `Decode.succeed >> on "${this.name}"`,
+      `)`,
+    ].join('');
   }
 
   private eventHandlerName() {
