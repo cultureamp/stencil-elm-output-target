@@ -12,7 +12,7 @@ export class EnumeratedStringType extends Type {
     switch (metadata.kind) {
       case 'component-property':
         this.name = metadata.propMeta.name;
-        this.typeString = metadata.propMeta.complexType.original;
+        this.typeString = metadata.propMeta.complexType.resolved;
         break;
 
       case 'object-field':
@@ -52,18 +52,21 @@ export class EnumeratedStringType extends Type {
   }
 
   private stringValues() {
-    return this.typeString.split(' | ').map((str) => {
-      try {
-        return JSON.parse(str);
-      } catch (e) {
-        if (e instanceof SyntaxError) {
-          throw new Error(
-            `Prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
-          );
+    return this.typeString
+      .split(' | ')
+      .map((str) => {
+        try {
+          return str !== 'undefined' ? JSON.parse(str) : undefined;
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            throw new Error(
+              `Prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
+            );
+          }
+          throw e;
         }
-        throw e;
-      }
-    });
+      })
+      .filter((str) => str !== undefined);
   }
 
   private constructorForStringValue(str: string): string {
