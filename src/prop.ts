@@ -38,7 +38,7 @@ export class Prop {
 
     const encoder = this.propType.attributeEncoderName();
 
-    const attribute = (!isOnly ? 'attributes.' : '') + this.attributeName();
+    const attribute = (!isOnly ? 'props.' : '') + this.propName();
 
     return this.propMeta.required
       ? [
@@ -56,11 +56,17 @@ export class Prop {
   }
 
   fieldTypeAnnotation(): string {
-    return `${this.attributeName()} : ${this.argTypeAnnotation()}`;
+    return `${this.propName()} : ${this.argTypeAnnotation()}`;
+  }
+
+  propName(): string {
+    return this.propMeta.name;
   }
 
   attributeName(): string {
-    return this.propMeta.name;
+    // this.propMeta.attribute is undefined when prop is not
+    // representable as an HTML attribute e.g. analytics object
+    return this.propMeta.attribute || this.propMeta.name;
   }
 
   argTypeAnnotation(): string {

@@ -55,10 +55,10 @@ export class Event {
   }
 
   fieldTypeAnnotation(): string {
-    return `${this.attributeName()} : ${this.argTypeAnnotation()}`;
+    return `${this.propName()} : ${this.argTypeAnnotation()}`;
   }
 
-  attributeName(): string {
+  propName(): string {
     return this.eventHandlerName();
   }
 
@@ -67,10 +67,10 @@ export class Event {
   }
 
   maybeHtmlAttribute(isOnly: boolean): string {
-    const attribute = (!isOnly ? 'attributes.' : '') + this.eventHandlerName();
+    const prop = (!isOnly ? 'props.' : '') + this.eventHandlerName();
 
     return [
-      `${attribute} |> `,
+      `${prop} |> `,
       `Maybe.map (`,
       `Decode.succeed >> on "${this.name}"`,
       `)`,

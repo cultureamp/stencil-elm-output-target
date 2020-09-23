@@ -135,9 +135,8 @@ function componentElm(
     .join('\n    -> ');
 
   const elementAttributesArg: string =
-    (attributeConfigs.length === 1 &&
-      `${attributeConfigs[0].attributeName()} `) ||
-    (attributeConfigs.length > 1 && 'attributes ') ||
+    (attributeConfigs.length === 1 && `${attributeConfigs[0].propName()} `) ||
+    (attributeConfigs.length > 1 && 'props ') ||
     '';
 
   const attributes = [
