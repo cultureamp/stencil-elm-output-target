@@ -7,7 +7,7 @@
     "strict": true,
     "declaration": true,
     "experimentalDecorators": true,
-    "lib": ["dom", "es2017", "esnext.array"],
+    "lib": ["es2017", "esnext.array"],
     "moduleResolution": "node",
     "module": "esnext",
     "target": "es2017",
@@ -15,7 +15,8 @@
     "noUnusedParameters": false,
     "outDir": "dist",
     "jsx": "preserve",
-    "sourceMap": true
+    "sourceMap": true,
+    "skipLibCheck": true,
   },
   "include": ["src"],
   "exclude": ["node_modules", "src/resources"]

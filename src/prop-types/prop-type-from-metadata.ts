@@ -6,6 +6,7 @@ import { NumberType } from './number-type';
 import { StringType } from './string-type';
 import { ConcreteTypeClass, Type } from './type';
 import { TypeFactory, TypeMetadata } from './types';
+import { UnionType } from './union-type';
 import { UnsupportedType } from './unsupported-type';
 
 export function propTypeFromMetadata(metadata: TypeMetadata): Type {
@@ -55,5 +56,9 @@ const propTypeClassByType: {
   {
     ifTypeMatches: /^(undefined \| )?{ (\w+: .+; )+}$/, // { key1: type1; key2: type2; }
     thenTypeClass: FixedObjectType,
+  },
+  {
+    ifTypeMatches: /^(undefined \| )?(.+ \| )+[^\|]+$/, // supportedType1 | supportedType2
+    thenTypeClass: UnionType,
   },
 ];

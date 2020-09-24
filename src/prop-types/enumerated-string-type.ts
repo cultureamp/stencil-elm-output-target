@@ -16,6 +16,7 @@ export class EnumeratedStringType extends Type {
         break;
 
       case 'object-field':
+      case 'union-member':
         this.name = metadata.name;
         this.typeString = metadata.type;
         break;
@@ -47,7 +48,7 @@ export class EnumeratedStringType extends Type {
     ];
   }
 
-  private customTypeConstructors() {
+  private customTypeConstructors(): string[] {
     return this.stringValues().map(this.constructorForStringValue, this);
   }
 

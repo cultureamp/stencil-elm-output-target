@@ -1,4 +1,4 @@
-import { objectTypeParser } from '../object-type-parser';
+import { objectTypeParser } from './object-type-parser';
 import { Type } from './type';
 import { capitalize } from '../utils';
 import { TypeFactory, TypeMetadata } from './types';
@@ -19,6 +19,7 @@ export class FixedObjectType extends Type {
         break;
 
       case 'object-field':
+      case 'union-member':
         this.name = metadata.name;
         this.typeString = metadata.type;
         break;
@@ -29,7 +30,7 @@ export class FixedObjectType extends Type {
     try {
       this.fields = objectTypeParser(resolvedType)
         .fields()
-        .map(({ name, type }) => ({
+        .map(({ name, type }: { name: string; type: string }) => ({
           name,
           type: typeFactory({ kind: 'object-field', name, type }),
         }));
