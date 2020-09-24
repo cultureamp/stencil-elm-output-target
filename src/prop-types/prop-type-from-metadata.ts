@@ -2,6 +2,7 @@ import { AnyObjectType } from './any-object-type';
 import { BooleanType } from './boolean-type';
 import { EnumeratedStringType } from './enumerated-string-type';
 import { FixedObjectType } from './fixed-object-type';
+import { NumberType } from './number-type';
 import { StringType } from './string-type';
 import { ConcreteTypeClass, Type } from './type';
 import { TypeMetadata } from './types';
@@ -35,6 +36,7 @@ const propTypeClassByType: {
   thenTypeClass: ConcreteTypeClass;
 }[] = [
   { ifTypeMatches: /^boolean$/, thenTypeClass: BooleanType },
+  { ifTypeMatches: /^number$/, thenTypeClass: NumberType },
   { ifTypeMatches: /^string$/, thenTypeClass: StringType },
   { ifTypeMatches: /^object$/, thenTypeClass: AnyObjectType },
   {
