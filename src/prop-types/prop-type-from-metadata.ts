@@ -5,7 +5,7 @@ import { FixedObjectType } from './fixed-object-type';
 import { NumberType } from './number-type';
 import { StringType } from './string-type';
 import { ConcreteTypeClass, Type } from './type';
-import { TypeMetadata } from './types';
+import { TypeFactory, TypeMetadata } from './types';
 import { UnsupportedType } from './unsupported-type';
 
 export function propTypeFromMetadata(metadata: TypeMetadata): Type {
@@ -17,17 +17,26 @@ export function propTypeFromMetadata(metadata: TypeMetadata): Type {
         ]
       : [metadata.type];
 
-  return new (propTypeClassForType(typeStrings))(
-    metadata,
-    propTypeFromMetadata,
-  );
+  return propTypeForType(typeStrings, metadata, propTypeFromMetadata);
 }
 
-function propTypeClassForType(typeStrings: string[]): ConcreteTypeClass {
+function propTypeForType(
+  typeStrings: string[],
+  metadata: TypeMetadata,
+  typeFactory: TypeFactory<Type>,
+): Type {
+  // get possibly-compatible Types based on regex match of the type string
+  const candidatePropTypes: Type[] = propTypeClassByType.reduce(
+    (candidateProps, { ifTypeMatches, thenTypeClass }) =>
+      typeStrings.some(ifTypeMatches.test.bind(ifTypeMatches))
+        ? [...candidateProps, new thenTypeClass(metadata, typeFactory)]
+        : candidateProps,
+    [] as Type[],
+  );
+
   return (
-    propTypeClassByType.find(({ ifTypeMatches }) =>
-      typeStrings.some((typeString) => ifTypeMatches.test(typeString)),
-    )?.thenTypeClass || UnsupportedType
+    candidatePropTypes.find((type) => type.isSupported()) ||
+    new UnsupportedType(metadata, typeFactory)
   );
 }
 

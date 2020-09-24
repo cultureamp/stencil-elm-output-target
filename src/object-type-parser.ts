@@ -15,6 +15,7 @@ type ParserState =
   | 'afterObjectType'
   | 'beforePrimitiveType'
   | 'afterField'
+  | 'end'
   | 'done';
 
 export function objectTypeParser(resolvedType: string) {
@@ -83,7 +84,15 @@ export function objectTypeParser(resolvedType: string) {
             break;
 
           case 'afterField':
-            this.branch('}', 'done', 'beforeFieldName');
+            this.branch('}', 'end', 'beforeFieldName');
+            break;
+
+          case 'end':
+            this.expect(
+              { regExp: /^}$/ },
+              'the end of the type string',
+              'done',
+            );
             break;
         }
       }
@@ -104,7 +113,7 @@ export function objectTypeParser(resolvedType: string) {
         const matches = resolvedType
           .substring(parsePosition)
           .match(expected.regExp);
-        if (matches && matches[1]) {
+        if (matches && !(expected.capture && !matches[1])) {
           if (expected.capture) {
             expected.capture(matches[1]);
           }
