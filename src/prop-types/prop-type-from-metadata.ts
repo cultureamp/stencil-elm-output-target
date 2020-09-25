@@ -1,4 +1,5 @@
 import { AnyObjectType } from './any-object-type';
+import { ArrayType } from './array-type';
 import { BooleanType } from './boolean-type';
 import { EnumeratedStringType } from './enumerated-string-type';
 import { FixedObjectType } from './fixed-object-type';
@@ -61,4 +62,5 @@ const propTypeClassByType: {
     ifTypeMatches: /^(undefined \| )?(.+ \| )+[^\|]+$/, // supportedType1 | supportedType2
     thenTypeClass: UnionType,
   },
+  { ifTypeMatches: /\[\]( \| undefined)?$/, thenTypeClass: ArrayType },
 ];
