@@ -2,59 +2,44 @@ import { Type } from './type';
 import { TypeFactory, TypeMetadata } from './types';
 
 export class ArrayType extends Type {
-  name: string;
-  typeString: string;
-  itemType: Type;
+  itemType: Type | undefined;
 
   constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
     super(metadata, typeFactory);
 
-    switch (metadata.kind) {
-      case 'component-property':
-        this.name = metadata.propMeta.name;
-        this.typeString = metadata.propMeta.complexType.resolved;
-        break;
-
-      case 'object-field':
-      case 'union-member':
-        this.name = metadata.name;
-        this.typeString = metadata.type;
-        break;
-    }
-
-    const itemTypeString = this.typeString
+    const match = this.typeString
       // strip "undefined | " from the start of the type of an optional prop
-      .replace(/^undefined \| /, '')
+      .replace(/^undefined \| /g, '')
       // strip " | undefined" from the end of the type of an optional prop
-      .replace(/ \| undefined$/, '')
-      // strip [] off the end of the type
-      .replace(/\[\]$/, '');
-
-    this.itemType = typeFactory({
-      kind: 'object-field',
-      name: `${this.name}Item`,
-      type: itemTypeString,
-    });
+      .replace(/ \| undefined$/g, '')
+      // this is a bit loose, since it can match "a | b[]", so be sure to
+      // prefer union type if it also claims to be compatible
+      .match(/(?<itemType>.*)\[\]$/);
+    if (match?.groups)
+      this.itemType = typeFactory({
+        name: `${this.name}ListItem`,
+        type: match.groups.itemType,
+      });
   }
 
-  isSupported(): boolean {
-    return this.itemType.isSupported();
+  isCompatibleWithMetadata(): boolean {
+    return this.itemType !== undefined;
   }
 
   annotation(): string {
-    return `List ${this.itemType.annotation()}`;
+    return `(List ${this.itemType?.annotation()})`;
   }
 
   customTypeNames(): string[] {
-    return this.itemType.customTypeNames();
+    return this.itemType?.customTypeNames() || [];
   }
 
   customTypeDeclarations(): string[] {
-    return this.itemType.customTypeDeclarations();
+    return this.itemType?.customTypeDeclarations() || [];
   }
 
   attributeEncoderName(): string {
-    return `Encode.list ${this.itemType.jsonEncoderName()}`;
+    return `Encode.list ${this.itemType?.jsonEncoderName() || ''}`;
   }
 
   jsonEncoderName(): string {
@@ -62,15 +47,15 @@ export class ArrayType extends Type {
   }
 
   encoders(): string[] {
-    return this.itemType.encoders();
+    return this.itemType?.encoders() || [];
   }
 
   typeAliasNames(): string[] {
-    return this.itemType.typeAliasNames();
+    return this.itemType?.typeAliasNames() || [];
   }
 
   typeAliasDeclarations(): string[] {
-    return this.itemType.typeAliasDeclarations();
+    return this.itemType?.typeAliasDeclarations() || [];
   }
 
   isSettableAsElementAttribute(): boolean {

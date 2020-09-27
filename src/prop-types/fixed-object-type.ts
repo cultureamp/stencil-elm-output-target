@@ -1,38 +1,23 @@
-import { objectTypeParser } from './object-type-parser';
+import parser from './fixed-object-type/parser';
 import { Type } from './type';
 import { capitalize } from '../utils';
 import { TypeFactory, TypeMetadata } from './types';
 
 export class FixedObjectType extends Type {
-  name: string;
-  typeString: string;
   fields: { name: string; type: Type }[];
   fieldParserError?: Error;
 
   constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
     super(metadata, typeFactory);
 
-    switch (metadata.kind) {
-      case 'component-property':
-        this.name = metadata.propMeta.name;
-        this.typeString = metadata.propMeta.complexType.resolved;
-        break;
-
-      case 'object-field':
-      case 'union-member':
-        this.name = metadata.name;
-        this.typeString = metadata.type;
-        break;
-    }
-
     // strip "undefined | " from the start of the type of an optional prop
     const resolvedType = this.typeString.replace(/^undefined \| /, '');
     try {
-      this.fields = objectTypeParser(resolvedType)
+      this.fields = parser(resolvedType)
         .fields()
         .map(({ name, type }: { name: string; type: string }) => ({
           name,
-          type: typeFactory({ kind: 'object-field', name, type }),
+          type: typeFactory({ name, type }),
         }));
     } catch (parserError) {
       this.fields = [];
@@ -40,11 +25,8 @@ export class FixedObjectType extends Type {
     }
   }
 
-  isSupported(): boolean {
-    return (
-      !this.fieldParserError &&
-      this.fields.every(({ type }) => type.isSupported())
-    );
+  isCompatibleWithMetadata(): boolean {
+    return this.fieldParserError === undefined;
   }
 
   annotation(): string {
@@ -57,12 +39,6 @@ export class FixedObjectType extends Type {
 
   customTypeDeclarations(): string[] {
     return this.fields.flatMap(({ type }) => type.customTypeDeclarations());
-  }
-
-  private customTypeFields(): string[] {
-    return this.fields.map(
-      ({ name, type }) => `${name} : ${type.annotation()}`,
-    );
   }
 
   attributeEncoderName(): string {
@@ -81,12 +57,10 @@ export class FixedObjectType extends Type {
         `    Encode.object`,
         `        [ ${this.fields
           .map(
-            (field) =>
-              `( "${field.name}", ${
-                field.type.jsonEncoderName()
-                  ? `${field.type.jsonEncoderName()} `
-                  : ''
-              }${this.name}.${field.name} )`,
+            ({ name, type }) =>
+              `( "${name}", ${
+                type.jsonEncoderName() ? `${type.jsonEncoderName()} ` : ''
+              }${this.name}.${name} )`,
           )
           .join('\n        , ')}`,
         `        ]`,
@@ -117,6 +91,12 @@ export class FixedObjectType extends Type {
       ].join('\n'),
       ...this.fields.flatMap(({ type }) => type.typeAliasDeclarations()),
     ];
+  }
+
+  private customTypeFields(): string[] {
+    return this.fields.map(
+      ({ name, type }) => `${name} : ${type.annotation()}`,
+    );
   }
 
   isSettableAsElementAttribute(): boolean {

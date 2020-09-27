@@ -1,8 +1,8 @@
 import { Type } from './type';
 
 export class NumberType extends Type {
-  isSupported(): boolean {
-    return true;
+  isCompatibleWithMetadata(): boolean {
+    return this.typeString === 'number';
   }
 
   annotation(): string {
