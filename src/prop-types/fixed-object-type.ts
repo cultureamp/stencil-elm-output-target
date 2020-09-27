@@ -1,4 +1,4 @@
-import { objectTypeParser } from '../object-type-parser';
+import { objectTypeParser } from './object-type-parser';
 import { Type } from './type';
 import { capitalize } from '../utils';
 import { TypeFactory, TypeMetadata } from './types';
@@ -7,6 +7,7 @@ export class FixedObjectType extends Type {
   name: string;
   typeString: string;
   fields: { name: string; type: Type }[];
+  fieldParserError?: Error;
 
   constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
     super(metadata, typeFactory);
@@ -18,6 +19,7 @@ export class FixedObjectType extends Type {
         break;
 
       case 'object-field':
+      case 'union-member':
         this.name = metadata.name;
         this.typeString = metadata.type;
         break;
@@ -25,16 +27,24 @@ export class FixedObjectType extends Type {
 
     // strip "undefined | " from the start of the type of an optional prop
     const resolvedType = this.typeString.replace(/^undefined \| /, '');
-    this.fields = objectTypeParser(resolvedType)
-      .fields()
-      .map(({ name, type }) => ({
-        name,
-        type: typeFactory({ kind: 'object-field', name, type }),
-      }));
+    try {
+      this.fields = objectTypeParser(resolvedType)
+        .fields()
+        .map(({ name, type }: { name: string; type: string }) => ({
+          name,
+          type: typeFactory({ kind: 'object-field', name, type }),
+        }));
+    } catch (parserError) {
+      this.fields = [];
+      this.fieldParserError = parserError;
+    }
   }
 
   isSupported(): boolean {
-    return this.fields.every(({ type }) => type.isSupported());
+    return (
+      !this.fieldParserError &&
+      this.fields.every(({ type }) => type.isSupported())
+    );
   }
 
   annotation(): string {

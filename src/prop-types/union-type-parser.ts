@@ -1,27 +1,24 @@
 /**
- * A really dumb parser that finds fields of a TypeScript object type and
+ * A really dumb parser that finds members of a TypeScript union type and
  * reports their types as strings.
  *
- * E.g. "{ foo: string; bar: { baz: object; }; }"
+ * E.g. "boolean | string[] | { foo: string; }" => ["boolean", "string[]", "{ foo: string; }"]
  *
  * Please make Kev write a test suite for this so that it is maintainable.
  */
 type ParserState =
   | 'start'
-  | 'beforeFieldName'
-  | 'beforeFieldType'
-  | 'beforeObjectType'
-  | 'inNestedDelimiter'
-  | 'afterObjectType'
-  | 'beforePrimitiveType'
-  | 'afterField'
+  | 'beforeMember'
+  | 'beforeObjectMember'
+  | 'beforePrimitiveMember'
+  | 'afterMember'
+  | 'beforeDelimiter'
   | 'done';
 
-export function objectTypeParser(resolvedType: string) {
+export function unionTypeParser(resolvedType: string) {
   let parsePosition = 0;
   let parserState: ParserState = 'start';
-  let fields: { name: string; type: string }[] = [];
-  let nextFieldName: string;
+  let members: { type: string }[] = [];
   let delimitedValue = '';
   let delimiterNestingLevel = 0;
 
@@ -30,60 +27,47 @@ export function objectTypeParser(resolvedType: string) {
       while (parserState !== 'done') {
         switch (parserState) {
           case 'start':
-            this.expect(
-              '{ ',
-              'an opening brace for the start of the object type',
-              'beforeFieldName',
-            );
+          case 'beforeMember':
+            this.branch('{ ', 'beforeObjectMember', 'beforePrimitiveMember');
             break;
 
-          case 'beforeFieldName':
-            this.expect(
-              {
-                regExp: /^(\w+): /,
-                capture: (fieldName) => {
-                  nextFieldName = fieldName;
-                },
-              },
-              'a field name in the object type',
-              'beforeFieldType',
-            );
-            break;
-
-          case 'beforeFieldType':
-            this.branch('{ ', 'beforeObjectType', 'beforePrimitiveType');
-            break;
-
-          case 'beforeObjectType':
+          case 'beforeObjectMember':
             this.delimitedString(
               '{',
-              '}; ',
-              (objectTypeWithSemicolonSpace) => {
-                fields.push({
-                  name: nextFieldName,
-                  type: objectTypeWithSemicolonSpace.slice(0, -'; '.length),
+              '}',
+              (objectType) => {
+                members.push({
+                  type: objectType.slice(0),
                 });
               },
-              `a nested object type for the ${nextFieldName} field`,
-              'afterField',
+              `a union member object type`,
+              'afterMember',
             );
             break;
 
-          case 'beforePrimitiveType':
+          case 'beforePrimitiveMember':
             this.expect(
               {
-                regExp: /^([^;]+); /,
-                capture: (fieldType) => {
-                  fields.push({ name: nextFieldName, type: fieldType });
+                regExp: /^([^|]+)(?= \| |$)/,
+                capture: (type) => {
+                  members.push({ type });
                 },
               },
-              `a primitive type for the ${nextFieldName} field`,
-              'afterField',
+              'a primitive member type',
+              'afterMember',
             );
             break;
 
-          case 'afterField':
-            this.branch('}', 'done', 'beforeFieldName');
+          case 'afterMember':
+            this.branch(/^$/, 'done', 'beforeDelimiter');
+            break;
+
+          case 'beforeDelimiter':
+            this.expect(
+              ' | ',
+              'a "|" delimiter between union members',
+              'beforeMember',
+            );
             break;
         }
       }
@@ -104,7 +88,7 @@ export function objectTypeParser(resolvedType: string) {
         const matches = resolvedType
           .substring(parsePosition)
           .match(expected.regExp);
-        if (matches && matches[1]) {
+        if (matches && !(expected.capture && !matches[1])) {
           if (expected.capture) {
             expected.capture(matches[1]);
           }
@@ -171,8 +155,8 @@ export function objectTypeParser(resolvedType: string) {
         throw new Error(`Expected ${expectedMsg}`);
       }
     },
-    fields() {
-      return fields;
+    members() {
+      return members;
     },
   }.parse();
 }

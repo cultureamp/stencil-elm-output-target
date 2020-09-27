@@ -165,8 +165,8 @@ function componentElm(
     [
       ...new Set( // remove duplicates
         attributeConfigs.flatMap((attributeConfig) => [
-          ...attributeConfig.typeAliasDeclarations(),
           ...attributeConfig.customTypeDeclarations(),
+          ...attributeConfig.typeAliasDeclarations(),
           ...attributeConfig.encoders(),
         ]),
       ),
