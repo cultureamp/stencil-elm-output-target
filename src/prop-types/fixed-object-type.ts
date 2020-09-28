@@ -10,8 +10,11 @@ export class FixedObjectType extends Type {
   constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
     super(metadata, typeFactory);
 
-    // strip "undefined | " from the start of the type of an optional prop
-    const resolvedType = this.typeString.replace(/^undefined \| /, '');
+    const resolvedType = this.typeString
+      // strip "undefined | " from the start of the type of an optional prop
+      .replace(/^undefined \| /, '')
+      // Stencil sometimes wraps objects in parens - strip them off
+      .replace(/^\((.*)\)$/, '$1');
     try {
       this.fields = parser(resolvedType)
         .fields()

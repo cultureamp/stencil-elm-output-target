@@ -10,6 +10,8 @@ type ParserState =
   | 'start'
   | 'beforeMember'
   | 'beforeObjectMember'
+  | 'beforeParenthesizedObjectMember'
+  | 'beforeMemberThatIsNotAnObject'
   | 'beforePrimitiveMember'
   | 'afterMember'
   | 'beforeDelimiter'
@@ -28,7 +30,34 @@ export default function parser(resolvedType: string) {
         switch (parserState) {
           case 'start':
           case 'beforeMember':
-            this.branch('{ ', 'beforeObjectMember', 'beforePrimitiveMember');
+            this.branch(
+              '{ ',
+              'beforeObjectMember',
+              'beforeMemberThatIsNotAnObject',
+            );
+            break;
+
+          case 'beforeMemberThatIsNotAnObject':
+            this.branch(
+              '({ ',
+              'beforeParenthesizedObjectMember',
+              'beforePrimitiveMember',
+            );
+            break;
+
+          case 'beforeParenthesizedObjectMember':
+            this.delimitedString(
+              '({',
+              '})',
+              (objectType) => {
+                members.push({
+                  // Strip off the parens on either end
+                  type: objectType.slice(1, -1),
+                });
+              },
+              `a union member object type`,
+              'afterMember',
+            );
             break;
 
           case 'beforeObjectMember':
@@ -37,7 +66,7 @@ export default function parser(resolvedType: string) {
               '}',
               (objectType) => {
                 members.push({
-                  type: objectType.slice(0),
+                  type: objectType,
                 });
               },
               `a union member object type`,

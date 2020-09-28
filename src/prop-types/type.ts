@@ -16,7 +16,7 @@ export abstract class Type {
     protected typeFactory: TypeFactory<Type>,
   ) {
     this.name = metadata.name;
-    this.typeString = metadata.type;
+    this.typeString = stripUndefined(metadata.type);
   }
 
   /**
@@ -45,4 +45,10 @@ export abstract class Type {
   abstract encoders(): string[];
 
   abstract isSettableAsElementAttribute(): boolean;
+}
+
+function stripUndefined(metadataType: string) {
+  return metadataType
+    .replace(/ \| undefined$/, '')
+    .replace(/^undefined \| /, '');
 }
