@@ -3,7 +3,7 @@ import {
   ComponentCompilerProperty,
   Logger,
 } from '@stencil/core/internal';
-import { propTypeFromMetadata, Type } from './prop-types';
+import { forComponentProperty, Type } from './prop-types';
 
 export class Prop {
   propMeta: ComponentCompilerProperty;
@@ -15,20 +15,11 @@ export class Prop {
     propMeta: ComponentCompilerProperty,
   ) {
     this.propMeta = propMeta;
-    this.propType = propTypeFromMetadata({
-      kind: 'component-property',
-      propMeta,
-    });
-
-    if (!this.propType.isSupported()) {
-      config.logger?.warn(
-        `Component "${cmpMeta.tagName}" prop "${propMeta.name}" of type ${propMeta.complexType.original} is not supported by Elm output target.`,
-      );
-    }
+    this.propType = forComponentProperty(config, cmpMeta, propMeta);
   }
 
   isSupported(): boolean {
-    return this.propType.isSupported();
+    return this.propType.isCompatibleWithMetadata();
   }
 
   maybeHtmlAttribute(isOnly: boolean): string {

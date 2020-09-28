@@ -15,7 +15,7 @@ type ParserState =
   | 'beforeDelimiter'
   | 'done';
 
-export function unionTypeParser(resolvedType: string) {
+export default function parser(resolvedType: string) {
   let parsePosition = 0;
   let parserState: ParserState = 'start';
   let members: { type: string }[] = [];

@@ -1,30 +1,14 @@
 import { capitalize } from '../utils';
 import { Type } from './type';
-import { TypeFactory, TypeMetadata } from './types';
 
 export class EnumeratedStringType extends Type {
-  name: string;
-  typeString: string; // '"foo" | "bar" | "baz"'
-
-  constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
-    super(metadata, typeFactory);
-
-    switch (metadata.kind) {
-      case 'component-property':
-        this.name = metadata.propMeta.name;
-        this.typeString = metadata.propMeta.complexType.resolved;
-        break;
-
-      case 'object-field':
-      case 'union-member':
-        this.name = metadata.name;
-        this.typeString = metadata.type;
-        break;
-    }
-  }
-
-  isSupported(): boolean {
-    return true;
+  isCompatibleWithMetadata(): boolean {
+    // '"foo" | "bar" | "baz"'
+    return (
+      this.typeString.match(
+        /^(undefined \| )?"[^"]*"( \| ("[^"]*"|undefined))*$/,
+      ) !== null
+    );
   }
 
   annotation(): string {
@@ -53,21 +37,18 @@ export class EnumeratedStringType extends Type {
   }
 
   private stringValues() {
-    return this.typeString
-      .split(' | ')
-      .map((str) => {
-        try {
-          return str !== 'undefined' ? JSON.parse(str) : undefined;
-        } catch (e) {
-          if (e instanceof SyntaxError) {
-            throw new Error(
-              `Prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
-            );
-          }
-          throw e;
+    return this.typeString.split(' | ').flatMap((str) => {
+      try {
+        return str !== 'undefined' ? [JSON.parse(str)] : [];
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          throw new Error(
+            `Prop "${this.name}" value ${str} cannot be parsed as a JavaScript string.`,
+          );
         }
-      })
-      .filter((str) => str !== undefined);
+        throw e;
+      }
+    });
   }
 
   private constructorForStringValue(str: string): string {

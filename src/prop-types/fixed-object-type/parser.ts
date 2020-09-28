@@ -16,7 +16,7 @@ type ParserState =
   | 'end'
   | 'done';
 
-export function objectTypeParser(resolvedType: string) {
+export default function parser(resolvedType: string) {
   let parsePosition = 0;
   let parserState: ParserState = 'start';
   let fields: { name: string; type: string }[] = [];

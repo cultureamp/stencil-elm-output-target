@@ -1,7 +1,13 @@
 import { Type } from './type';
 
+/**
+ * Supports nonspecific `object` type,
+ * as well as any type that we do not recognise,
+ * giving the consuming Elm code the opportunity to encode the value itself
+ * as a `Json.Encode.Value`.
+ */
 export class AnyObjectType extends Type {
-  isSupported(): boolean {
+  isCompatibleWithMetadata(): boolean {
     return true;
   }
 
@@ -21,8 +27,8 @@ export class AnyObjectType extends Type {
     return null;
   }
 
-  jsonEncoderName(): null {
-    return null;
+  jsonEncoderName(): string {
+    return 'identity';
   }
 
   encoders(): string[] {

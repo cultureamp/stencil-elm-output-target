@@ -1,8 +1,8 @@
 import { Type } from './type';
 
 export class BooleanType extends Type {
-  isSupported(): boolean {
-    return true;
+  isCompatibleWithMetadata(): boolean {
+    return this.typeString === 'boolean';
   }
 
   annotation(): string {

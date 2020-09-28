@@ -1,4 +1,4 @@
-import { unionTypeParser } from './union-type-parser';
+import parser from './union-type/parser';
 import { capitalize } from '../utils';
 import { Type } from './type';
 import { TypeFactory, TypeMetadata } from './types';
@@ -6,40 +6,35 @@ import { TypeFactory, TypeMetadata } from './types';
 type Member = { name: string; type: Type };
 
 export class UnionType extends Type {
-  name: string;
-  typeString: string;
   members: Member[];
   memberParserError?: Error;
 
   constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
     super(metadata, typeFactory);
 
-    switch (metadata.kind) {
-      case 'component-property':
-        this.name = metadata.propMeta.name;
-        this.typeString = metadata.propMeta.complexType.resolved;
-        break;
-
-      case 'object-field':
-      case 'union-member':
-        this.name = metadata.name;
-        this.typeString = metadata.type;
-        break;
-    }
-
-    // strip "undefined | " from the start of the type of an optional prop
-    const resolvedType = this.typeString.replace(/^undefined \| /, '');
     try {
-      this.members = unionTypeParser(resolvedType)
+      const memberStrings = parser(this.typeString)
         .members()
-        .map(({ type }: { type: string }, index: number) => ({
+        // ignore 'undefined' members, which just signify the value is optional
+        .filter(({ type }) => type !== 'undefined');
+      if (memberStrings.length < 2)
+        // Accepting unions of just one type would cause infinite recursion, as
+        // we tried to determine the type of a union with a single member with a
+        // type of a union with a single member with a type of a union with a
+        // single member...
+        throw new Error(
+          'Not a union type, since it does not have at least two non-undefined members!',
+        );
+
+      this.members = memberStrings.map(
+        ({ type }: { type: string }, index: number) => ({
           name: this.memberConstructorName(index),
           type: typeFactory({
-            kind: 'union-member',
             name: this.memberValueTypeAliasName(index),
             type,
           }),
-        }));
+        }),
+      );
     } catch (parserError) {
       this.members = [];
       this.memberParserError = parserError;
@@ -56,10 +51,10 @@ export class UnionType extends Type {
     return `${this.name}${memberIndex}Value`;
   }
 
-  isSupported(): boolean {
+  isCompatibleWithMetadata(): boolean {
     return (
       !this.memberParserError &&
-      this.members.every(({ type }) => type.isSupported())
+      this.members.every(({ type }) => type.isCompatibleWithMetadata())
     );
   }
 
