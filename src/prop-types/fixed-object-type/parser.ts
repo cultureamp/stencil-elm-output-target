@@ -17,8 +17,9 @@ type ParserState =
 export default function parser(resolvedType: string) {
   let parsePosition = 0;
   let parserState: ParserState = 'start';
-  let fields: { name: string; type: string }[] = [];
+  let fields: { name: string; type: string; required: boolean }[] = [];
   let nextFieldName: string;
+  let nextFieldIsRequired: boolean;
   let delimitedValue = '';
   let delimiterNestingLevel = 0;
 
@@ -41,9 +42,13 @@ export default function parser(resolvedType: string) {
           case 'beforeFieldName':
             this.expect(
               {
-                regExp: /^(\w+): /,
+                regExp: /^(\w+\??): /,
                 capture: (fieldName) => {
-                  nextFieldName = fieldName;
+                  const optionalSuffix = '?';
+                  nextFieldIsRequired = !fieldName.endsWith(optionalSuffix);
+                  nextFieldName = nextFieldIsRequired
+                    ? fieldName
+                    : fieldName.slice(0, -optionalSuffix.length);
                 },
               },
               'a field name in the object type',
@@ -63,6 +68,7 @@ export default function parser(resolvedType: string) {
                 fields.push({
                   name: nextFieldName,
                   type: objectTypeWithSemicolonSpace.slice(0, -'; '.length),
+                  required: nextFieldIsRequired,
                 });
               },
               `a nested object type for the ${nextFieldName} field`,
@@ -75,7 +81,11 @@ export default function parser(resolvedType: string) {
               {
                 regExp: /^([^;]+); /,
                 capture: (fieldType) => {
-                  fields.push({ name: nextFieldName, type: fieldType });
+                  fields.push({
+                    name: nextFieldName,
+                    type: fieldType,
+                    required: nextFieldIsRequired,
+                  });
                 },
               },
               `a primitive type for the ${nextFieldName} field`,

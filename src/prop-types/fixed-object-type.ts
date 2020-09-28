@@ -4,7 +4,7 @@ import { capitalize } from '../utils';
 import { TypeFactory, TypeMetadata } from './types';
 
 export class FixedObjectType extends Type {
-  fields: { name: string; type: Type }[];
+  fields: { name: string; type: Type; required: boolean }[];
   fieldParserError?: Error;
 
   constructor(metadata: TypeMetadata, typeFactory: TypeFactory<Type>) {
@@ -18,9 +18,9 @@ export class FixedObjectType extends Type {
     try {
       this.fields = parser(resolvedType)
         .fields()
-        .map(({ name, type }: { name: string; type: string }) => ({
-          name,
-          type: typeFactory({ name, type }),
+        .map((field) => ({
+          ...field,
+          type: typeFactory({ ...field }),
         }));
     } catch (parserError) {
       this.fields = [];
@@ -55,18 +55,23 @@ export class FixedObjectType extends Type {
   encoders(): string[] {
     return [
       [
-        `${this.name}Encoder : ${this.typeAliasName()} -> Value`,
-        `${this.name}Encoder ${this.name} =`,
+        `${this.attributeEncoderName()} : ${this.typeAliasName()} -> Value`,
+        `${this.attributeEncoderName()} ${this.name} =`,
         `    Encode.object`,
-        `        [ ${this.fields
-          .map(
-            ({ name, type }) =>
-              `( "${name}", ${
-                type.jsonEncoderName() ? `${type.jsonEncoderName()} ` : ''
-              }${this.name}.${name} )`,
+        `        ([ ${this.fields
+          .map(({ name, type, required }) =>
+            required
+              ? `${this.name}.${name} |> (\\value -> Just ( "${name}", ${
+                  type.jsonEncoderName() ? `${type.jsonEncoderName()} ` : ''
+                }value ))`
+              : `${this.name}.${name} |> Maybe.map (\\value -> ( "${name}", ${
+                  type.jsonEncoderName() ? `${type.jsonEncoderName()} ` : ''
+                }value ))`,
           )
-          .join('\n        , ')}`,
-        `        ]`,
+          .join('\n         , ')}`,
+        `         ]`,
+        `            |> List.filterMap identity`,
+        `        )`,
       ]
         .flat()
         .join('\n'),
@@ -98,7 +103,8 @@ export class FixedObjectType extends Type {
 
   private customTypeFields(): string[] {
     return this.fields.map(
-      ({ name, type }) => `${name} : ${type.annotation()}`,
+      ({ name, type, required }) =>
+        `${name} : ${required ? '' : 'Maybe '}${type.annotation()}`,
     );
   }
 
