@@ -11,19 +11,35 @@
   "scripts": {
     "build": "tsc && npm run rollup",
     "rollup": "rollup -c",
-    "test": "jest --passWithNoTests"
+    "test": "jest"
   },
   "author": "Kevin Yank <kevin@cultureamp.com>",
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^9.0.0",
     "@stencil/core": ">=1.8.0",
+    "@types/jest": "^26.0.14",
     "@types/node": "^14.0.13",
+    "jest": "^26.4.2",
     "rollup": "^2.16.1",
     "rollup-plugin-sourcemaps": "^0.6.2",
     "typescript": "^3.9.5"
   },
   "peerDependencies": {
     "@stencil/core": ">=1.8.0"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.(js|ts|tsx)$": "<rootDir>/test/jest.preprocessor.js"
+    },
+    "testRegex": "(\\.(test|spec))\\.(ts?|tsx?|jsx?)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "json",
+      "jsx"
+    ],
+    "testURL": "http://localhost"
   }
 }

@@ -3,16 +3,14 @@
  * reports their types as strings.
  *
  * E.g. "{ foo: string; bar: { baz: object; }; }"
- *
- * Please make Kev write a test suite for this so that it is maintainable.
  */
 type ParserState =
   | 'start'
+  | 'beforeField'
   | 'beforeFieldName'
   | 'beforeFieldType'
   | 'beforeObjectType'
   | 'beforePrimitiveType'
-  | 'afterField'
   | 'end'
   | 'done';
 
@@ -32,8 +30,12 @@ export default function parser(resolvedType: string) {
             this.expect(
               '{ ',
               'an opening brace for the start of the object type',
-              'beforeFieldName',
+              'beforeField',
             );
+            break;
+
+          case 'beforeField':
+            this.branch('}', 'end', 'beforeFieldName');
             break;
 
           case 'beforeFieldName':
@@ -64,7 +66,7 @@ export default function parser(resolvedType: string) {
                 });
               },
               `a nested object type for the ${nextFieldName} field`,
-              'afterField',
+              'beforeField',
             );
             break;
 
@@ -77,12 +79,8 @@ export default function parser(resolvedType: string) {
                 },
               },
               `a primitive type for the ${nextFieldName} field`,
-              'afterField',
+              'beforeField',
             );
-            break;
-
-          case 'afterField':
-            this.branch('}', 'end', 'beforeFieldName');
             break;
 
           case 'end':
