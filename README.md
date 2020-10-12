@@ -86,7 +86,7 @@ export const config: Config = {
   (e.g. if these are only used internally by other components)
 - `proxiesModuleDir`: the path into which you want to write Elm modules.
   The final directory name in the path should be a valid Elm module name,
-  since it is uses as the namespace for all of your components.
+  since it is used as the namespace for all of your components.
   In the above example, a `stencil-button` component will generate
   a module named `Components.StencilButton` as a StencilButton.elm file
   in the Components directory. The parent directory (src in the above example)
