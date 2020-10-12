@@ -138,7 +138,8 @@ type ActionMenu = {
 
 we currently don't use the names `ActionButton` and `ActionMenu`
 from the TypeScript source code
-to generate the Elm custom type constructors their value types.
+to generate the Elm custom type constructors
+or their value types.
 Instead, we generate generic names based on the prop name (`primaryAction`):
 
 ```elm
