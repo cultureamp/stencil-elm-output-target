@@ -9,7 +9,8 @@
     "elm-component-lib/"
   ],
   "scripts": {
-    "build": "tsc && npm run rollup",
+    "build": "tsc -p tsconfig.build.json && npm run rollup",
+    "clean": "rm -Rf dist",
     "rollup": "rollup -c",
     "test": "jest"
   },

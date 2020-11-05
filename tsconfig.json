@@ -9,7 +9,7 @@
     "experimentalDecorators": true,
     "lib": ["es2017", "esnext.array"],
     "moduleResolution": "node",
-    "module": "esnext",
+    "module": "commonjs",
     "target": "es2017",
     "noUnusedLocals": true,
     "noUnusedParameters": false,
@@ -18,6 +18,11 @@
     "sourceMap": true,
     "skipLibCheck": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "src/resources"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/resources"
+  ]
 }
