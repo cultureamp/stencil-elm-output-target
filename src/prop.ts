@@ -8,6 +8,7 @@ import { forComponentProperty, Type } from './prop-types';
 export class Prop {
   propMeta: ComponentCompilerProperty;
   propType: Type;
+  type: 'prop' = 'prop';
 
   constructor(
     config: { logger?: Logger },

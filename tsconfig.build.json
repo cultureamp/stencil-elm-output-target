@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext",
+  },
+  "exclude": [
+    "node_modules",
+    "src/resources",
+    "**/__tests__/*"
+  ]
+}

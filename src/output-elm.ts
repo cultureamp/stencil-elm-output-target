@@ -47,15 +47,17 @@ async function generateProxyElmModules(
   outputTarget: OutputTargetElm,
 ) {
   return Promise.all(
-    components.map(
-      generateProxyElmModule.bind(this, compilerCtx, config, outputTarget),
-    ),
+    components
+      .map(generateProxyElmModule.bind(this, config, outputTarget))
+      .map(({ filePath, moduleSrc }) =>
+        compilerCtx.fs.writeFile(filePath, moduleSrc),
+      ),
   );
 }
 
-async function generateProxyElmModule(
+// exported for testing
+export function generateProxyElmModule(
   this: void,
-  compilerCtx: CompilerCtx,
   config: Config,
   outputTarget: OutputTargetElm,
   cmpMeta: ComponentCompilerMeta,
@@ -90,7 +92,7 @@ import Json.Encode as Encode exposing (Value)\n\n\n`;
     generatedCode,
   ].join('\n');
 
-  return compilerCtx.fs.writeFile(filePath, moduleSrc);
+  return { filePath, moduleSrc };
 }
 
 function componentExposures(
@@ -102,13 +104,14 @@ function componentExposures(
 
   return [
     'view',
+    (attributeConfigs.length > 1 && 'Props') || '',
     ...attributeConfigs
       .flatMap((attributeConfig) => attributeConfig.customTypeNames())
       .map((attributeConfig) => `${attributeConfig}(..)`),
     ...attributeConfigs.flatMap((attributeConfig) =>
       attributeConfig.typeAliasNames(),
     ),
-  ];
+  ].filter((str) => str.length > 0);
 }
 
 function componentElm(
@@ -122,12 +125,7 @@ function componentElm(
   const elementFunctionType: string = [
     (attributeConfigs.length === 1 &&
       attributeConfigs[0].argTypeAnnotation()) ||
-      (attributeConfigs.length > 1 &&
-        '{ ' +
-          attributeConfigs
-            .map((item) => item.fieldTypeAnnotation())
-            .join('\n    , ') +
-          '\n    }'),
+      (attributeConfigs.length > 1 && 'Props'),
     takesChildren && 'List (Html msg)',
     'Html msg',
   ]
@@ -154,6 +152,7 @@ function componentElm(
   const children = takesChildren ? 'children' : '[]';
 
   return [
+    propTypeAlias(attributeConfigs) || '',
     [
       `view :`,
       `    ${elementFunctionType}`,
@@ -205,4 +204,19 @@ function slotProperty(): ComponentCompilerProperty {
       references: {},
     },
   };
+}
+
+function propTypeAlias(attributeConfigs: (Prop | Event)[]): string | undefined {
+  if (attributeConfigs.length > 1)
+    return [
+      `type alias Props ${
+        // events require a msg type variable
+        attributeConfigs.some((item) => item.type === 'event') ? 'msg ' : ''
+      }=`,
+      '    { ' +
+        attributeConfigs
+          .map((item) => item.fieldTypeAnnotation())
+          .join('\n    , ') +
+        '\n    }',
+    ].join('\n');
 }
