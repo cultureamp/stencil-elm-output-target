@@ -24,6 +24,7 @@ export class Event {
   // TODO support decoding CustomEvent detail values
   tagName: string;
   name: string;
+  type: 'event' = 'event';
 
   constructor(cmpMeta: ComponentCompilerMeta, event: ComponentCompilerEvent) {
     this.tagName = cmpMeta.tagName;

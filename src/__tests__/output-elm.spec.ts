@@ -1,10 +1,15 @@
 import {
+  ComponentCompilerEvent,
   ComponentCompilerMeta,
+  ComponentCompilerProperty,
   ComponentCompilerPropertyType,
   Encapsulation,
 } from '@stencil/core/internal/stencil-private';
 import { generateProxyElmModule } from '../output-elm';
 
+// This is effectively an integration test of the whole plugin. We cannot test
+// elmProxyOutput (the outer layer of the plugin) easily because it is async and
+// writes to the file system.
 describe('generateProxyElmModule', () => {
   it('should generate an Elm module', () => {
     const cmpMeta = { ...baseCmpMeta, tagName: 'my-foo' };
@@ -57,7 +62,7 @@ view slot =
         tagName: 'my-foo',
         properties: [
           {
-            ...basePropMeta,
+            ...baseProp,
             name: 'myProp',
             attribute: 'my-prop',
             type: 'string' as ComponentCompilerPropertyType,
@@ -86,6 +91,23 @@ view :
       );
     });
 
+    it('should generate a Props type alias', () => {
+      const { moduleSrc } = generateProxyElmModule(
+        config,
+        outputTarget,
+        cmpMeta,
+      );
+
+      expect(moduleSrc).toContain(
+        `
+type alias Props =
+    { myProp : Maybe String
+    , slot : Maybe String
+    }
+        `.trim(),
+      );
+    });
+
     it('should export the Props type alias', () => {
       const { moduleSrc } = generateProxyElmModule(
         config,
@@ -101,11 +123,37 @@ exposing
     )
       `.trim(),
       );
+    });
+  });
+
+  describe('with an event emitter', () => {
+    let cmpMeta: ComponentCompilerMeta;
+
+    beforeEach(() => {
+      cmpMeta = {
+        ...baseCmpMeta,
+        tagName: 'my-foo',
+        events: [
+          {
+            ...baseEvent,
+            name: 'action',
+          },
+        ],
+      };
+    });
+
+    it('should generate a Props type alias with a type variable', () => {
+      const { moduleSrc } = generateProxyElmModule(
+        config,
+        outputTarget,
+        cmpMeta,
+      );
+
       expect(moduleSrc).toContain(
         `
-type alias Props =
-    { myProp : Maybe String
-    , slot : Maybe String
+type alias Props msg =
+    { slot : Maybe String
+    , onAction : Maybe msg
     }
         `.trim(),
       );
@@ -114,7 +162,7 @@ type alias Props =
 
   const config = {};
   const outputTarget = { proxiesModuleDir: './Components' };
-  const baseCmpMeta = {
+  const baseCmpMeta: ComponentCompilerMeta = {
     assetsDirs: [],
     componentClassName: '',
     elementRef: '',
@@ -193,7 +241,7 @@ type alias Props =
     potentialCmpRefs: [],
   };
 
-  const basePropMeta = {
+  const baseProp: ComponentCompilerProperty = {
     name: '',
     internal: false,
 
@@ -208,5 +256,22 @@ type alias Props =
       references: {},
     },
     docs: { text: '', tags: [] },
+  };
+
+  const baseEvent: ComponentCompilerEvent = {
+    internal: false,
+
+    // ComponentCompilerStaticEvent
+    name: '',
+    method: '',
+    bubbles: false,
+    cancelable: false,
+    composed: false,
+    docs: { text: '', tags: [] },
+    complexType: {
+      original: '',
+      resolved: '',
+      references: {},
+    },
   };
 });

@@ -209,7 +209,10 @@ function slotProperty(): ComponentCompilerProperty {
 function propTypeAlias(attributeConfigs: (Prop | Event)[]): string | undefined {
   if (attributeConfigs.length > 1)
     return [
-      'type alias Props =',
+      `type alias Props ${
+        // events require a msg type variable
+        attributeConfigs.some((item) => item.type === 'event') ? 'msg ' : ''
+      }=`,
       '    { ' +
         attributeConfigs
           .map((item) => item.fieldTypeAnnotation())
