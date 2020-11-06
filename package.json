@@ -15,6 +15,7 @@
     "test": "jest"
   },
   "author": "Kevin Yank <kevin@cultureamp.com>",
+  "repository": "cultureamp/stencil-elm-output-target",
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^9.0.0",
