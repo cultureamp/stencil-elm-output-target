@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: stencil-elm-output-target
+  description: >
+    Plugin for Stencil (https://stenciljs.com) to output a proxy module to consume web components with type safety in Elm.
+  tags:
+    - users-internal
+    - camp-foundations
+    - data-none
+  annotations:
+    github.com/project-slug: cultureamp/stencil-elm-output-target
+    github.com/team-slug: cultureamp/kaizen-design-system
+spec:
+  type: library
+  lifecycle: production
+  owner: kaizen-design-system
